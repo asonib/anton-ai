@@ -1,8 +1,8 @@
 {
-  "name": "ai-chat-backend",
+  "name": "anton-ai-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Layered Express + TypeScript + Prisma API for the AI Chat application",
+  "description": "Layered Express + TypeScript + Prisma API for the Anton AI application",
   "main": "dist/server.js",
   "engines": { "node": ">=18.18" },
   "scripts": {

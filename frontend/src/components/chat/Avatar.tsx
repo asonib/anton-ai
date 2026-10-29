@@ -9,15 +9,15 @@ export const AvatarCircle = styled.div<{ $kind: 'user' | 'assistant'; $pulse?: b
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #fff;
+  color: ${({ $kind, theme }) => ($kind === 'assistant' ? theme.colors.onPrimary : theme.colors.text)};
   background: ${({ $kind, theme }) =>
     $kind === 'assistant'
       ? `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`
       : theme.colors.borderStrong};
-  ${({ $pulse }) =>
+  ${({ $pulse, theme }) =>
     $pulse &&
     css`
-      animation: ${pulseRing} 1.6s ease-out infinite;
+      animation: ${pulseRing(theme.colors.glow)} 1.6s ease-out infinite;
     `}
 `;
 

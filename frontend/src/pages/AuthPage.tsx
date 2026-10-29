@@ -6,6 +6,7 @@ import { Button, IconButton, Spinner } from '../components/common/Button';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeModeContext';
+import { appEnv } from '../config/env';
 import { messageEnter } from '../styles/animations';
 import { NormalisedError, toNormalisedError } from '../utils/errors';
 
@@ -45,8 +46,9 @@ const Logo = styled.div`
   border-radius: ${({ theme }) => theme.radii.lg};
   display: grid;
   place-items: center;
-  color: #fff;
+  color: ${({ theme }) => theme.colors.onPrimary};
   margin-bottom: ${({ theme }) => theme.space.lg};
+  box-shadow: ${({ theme }) => theme.shadows.glow};
   background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary}, ${({ theme }) => theme.colors.accent});
 `;
 
@@ -226,7 +228,7 @@ export function AuthPage({ initialMode = 'login' }: { initialMode?: Mode }) {
           <Sparkles size={22} />
         </Logo>
         <Title>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Title>
-        <Subtitle>Chat with Ollama, Claude, Gemini and ChatGPT from one place.</Subtitle>
+        <Subtitle>{appEnv.appName} — chat with Ollama, Claude, Gemini and ChatGPT from one place.</Subtitle>
 
         <Tabs role="tablist">
           <Tab type="button" role="tab" aria-selected={mode === 'login'} $active={mode === 'login'} onClick={() => switchMode('login')}>

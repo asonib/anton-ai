@@ -1,13 +1,13 @@
-name: ai-chat
+name: anton-ai
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: ai-chat-mysql
+    container_name: anton-ai-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_chat}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-anton_ai}
       MYSQL_USER: ${MYSQL_USER:-chatapp}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chatapp_password}
       TZ: UTC
@@ -29,10 +29,10 @@ services:
       start_period: 30s
 
   # Optional: `docker compose --profile ollama up -d ollama`, then
-  # `docker exec -it ai-chat-ollama ollama pull llama3.2`
+  # `docker exec -it anton-ai-ollama ollama pull llama3.2`
   ollama:
     image: ollama/ollama:latest
-    container_name: ai-chat-ollama
+    container_name: anton-ai-ollama
     profiles: ["ollama"]
     restart: unless-stopped
     ports:

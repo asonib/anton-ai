@@ -1,5 +1,5 @@
 import { Menu, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { ChatViewport } from '../components/chat/ChatViewport';
 import { EmptyState } from '../components/chat/EmptyState';
@@ -9,8 +9,10 @@ import { IconButton } from '../components/common/Button';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../hooks/useChat';
+import { appEnv } from '../config/env';
 import { fadeIn } from '../styles/animations';
 import { media } from '../styles/theme';
+import { storage } from '../utils/storage';
 
 const Layout = styled.div`
   display: flex;
@@ -66,6 +68,24 @@ export function ChatPage() {
   const chat = useChat();
   const [draft, setDraft] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(storage.getSidebarCollapsed);
+  const toggleSidebarCollapsed = useCallback(() => setSidebarCollapsed((c) => !c), []);
+
+  useEffect(() => {
+    storage.setSidebarCollapsed(sidebarCollapsed);
+  }, [sidebarCollapsed]);
+
+  // Ctrl/Cmd + B toggles the desktop sidebar.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebarCollapsed();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleSidebarCollapsed]);
 
   const providerInfo = chat.providers.find((p) => p.id === chat.provider);
   const providerLabel = providerInfo?.label ?? chat.provider;
@@ -87,6 +107,8 @@ export function ChatPage() {
     <Layout>
       <Sidebar
         open={sidebarOpen}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapsed}
         conversations={chat.conversations}
         loading={chat.loadingConversations}
         activeId={chat.activeId}
@@ -107,7 +129,7 @@ export function ChatPage() {
           <IconButton type="button" aria-label="Open sidebar" onClick={() => setSidebarOpen(true)}>
             <Menu size={18} />
           </IconButton>
-          <span>AI Chat</span>
+          <span>{appEnv.appName}</span>
           <IconButton type="button" aria-label="New chat" onClick={chat.newChat}>
             <Plus size={18} />
           </IconButton>

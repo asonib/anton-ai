@@ -1,7 +1,8 @@
 import axios, { AxiosError, AxiosHeaders } from 'axios';
+import { appEnv } from '../config/env';
 import { storage } from '../utils/storage';
 
-export const UNAUTHORIZED_EVENT = 'aichat:unauthorized';
+export const UNAUTHORIZED_EVENT = 'antonai:unauthorized';
 
 /**
  * Shared Axios instance.
@@ -10,7 +11,7 @@ export const UNAUTHORIZED_EVENT = 'aichat:unauthorized';
  *    and broadcasts UNAUTHORIZED_EVENT so AuthContext can redirect to /login.
  */
 export const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
+  baseURL: appEnv.apiBaseUrl,
   timeout: 180_000, // local models can be slow on first load
   headers: { 'Content-Type': 'application/json' },
 });

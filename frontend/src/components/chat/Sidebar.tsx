@@ -1,7 +1,8 @@
-import { LogOut, MessageSquare, Moon, Plus, Sun, Trash2 } from 'lucide-react';
+import { LogOut, MessageSquare, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
-import styled, { css } from 'styled-components';
+import styled, { css, type RuleSet } from 'styled-components';
 import type { ConversationSummary, LLMProvider, ProviderInfo } from '../../api/types';
+import { appEnv } from '../../config/env';
 import { useThemeMode } from '../../context/ThemeModeContext';
 import { slideInLeft } from '../../styles/animations';
 import { media } from '../../styles/theme';
@@ -10,53 +11,140 @@ import { Button, IconButton } from '../common/Button';
 import { ProviderSelect } from './ProviderSelect';
 import { ConversationsSkeleton } from './SkeletonLoader';
 
-const Aside = styled.aside<{ $open: boolean }>`
-  width: ${({ theme }) => theme.layout.sidebarWidth};
+/** Styles applied only on desktop while the sidebar is collapsed (mobile always uses the full drawer). */
+const whenCollapsed = (collapsed: boolean, rules: RuleSet<object>) =>
+  collapsed &&
+  css`
+    ${media.desktop} {
+      ${rules}
+    }
+  `;
+
+const Aside = styled.aside<{ $open: boolean; $collapsed: boolean }>`
+  width: ${({ theme, $collapsed }) => ($collapsed ? theme.layout.sidebarCollapsedWidth : theme.layout.sidebarWidth)};
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: ${({ theme }) => theme.colors.bgElevated};
+  overflow: hidden;
+  background: ${({ theme }) => theme.colors.panel};
+  backdrop-filter: blur(12px);
   border-right: 1px solid ${({ theme }) => theme.colors.border};
-  transition: transform ${({ theme }) => theme.transitions.slow};
+  transition: transform ${({ theme }) => theme.transitions.slow}, width ${({ theme }) => theme.transitions.slow};
 
   ${media.mobile} {
     position: fixed;
     inset: 0 auto 0 0;
+    width: ${({ theme }) => theme.layout.sidebarWidth};
     z-index: ${({ theme }) => theme.zIndex.sidebar};
+    background: ${({ theme }) => theme.colors.bgElevated};
     box-shadow: ${({ theme }) => theme.shadows.lg};
     transform: translateX(${({ $open }) => ($open ? '0' : '-105%')});
   }
 `;
 
-const Top = styled.div`
+const Top = styled.div<{ $collapsed: boolean }>`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.space.lg};
   padding: ${({ theme }) => theme.space.lg};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+
+  ${({ $collapsed, theme }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        align-items: center;
+        padding: ${theme.space.lg} ${theme.space.sm};
+      `,
+    )}
 `;
 
-const Brand = styled.div`
+const BrandRow = styled.div<{ $collapsed: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.space.sm};
+  min-height: 30px;
+
+  ${({ $collapsed }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        justify-content: center;
+      `,
+    )}
+`;
+
+const Brand = styled.div<{ $collapsed: boolean }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.space.sm};
   font-weight: 700;
   font-size: ${({ theme }) => theme.fontSizes.lg};
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 
   span.dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary}, ${({ theme }) => theme.colors.accent});
+    box-shadow: ${({ theme }) => theme.shadows.glow};
+  }
+
+  ${({ $collapsed }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        display: none;
+      `,
+    )}
+`;
+
+const CollapseBtn = styled(IconButton)`
+  ${media.mobile} {
+    display: none;
   }
 `;
 
-const List = styled.nav`
+const NewChatButton = styled(Button)<{ $collapsed: boolean }>`
+  white-space: nowrap;
+  ${({ $collapsed, theme }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        width: auto;
+        padding: ${theme.space.md};
+        .label {
+          display: none;
+        }
+      `,
+    )}
+`;
+
+const ProviderWrap = styled.div<{ $collapsed: boolean }>`
+  ${({ $collapsed }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        display: none;
+      `,
+    )}
+`;
+
+const List = styled.nav<{ $collapsed: boolean }>`
   flex: 1;
   overflow-y: auto;
   padding: ${({ theme }) => theme.space.sm};
+
+  ${({ $collapsed }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        visibility: hidden;
+      `,
+    )}
 `;
 
 const Group = styled.div`
@@ -91,6 +179,7 @@ const Item = styled.div<{ $active: boolean; $index: number }>`
     css`
       background: ${theme.colors.primarySoft};
       color: ${theme.colors.text};
+      svg { color: ${theme.colors.primary}; }
       &::before {
         content: '';
         position: absolute;
@@ -100,6 +189,7 @@ const Item = styled.div<{ $active: boolean; $index: number }>`
         width: 3px;
         border-radius: 3px;
         background: ${theme.colors.primary};
+        box-shadow: ${theme.shadows.glow};
       }
     `}
 
@@ -141,15 +231,24 @@ const Empty = styled.div`
   color: ${({ theme }) => theme.colors.textSubtle};
 `;
 
-const Bottom = styled.div`
+const Bottom = styled.div<{ $collapsed: boolean }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.space.sm};
   padding: ${({ theme }) => theme.space.md} ${({ theme }) => theme.space.lg};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
+
+  ${({ $collapsed, theme }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        flex-direction: column;
+        padding: ${theme.space.md} ${theme.space.sm};
+      `,
+    )}
 `;
 
-const Email = styled.div`
+const Email = styled.div<{ $collapsed: boolean }>`
   flex: 1;
   min-width: 0;
   font-size: ${({ theme }) => theme.fontSizes.sm};
@@ -157,10 +256,21 @@ const Email = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  ${({ $collapsed }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        display: none;
+      `,
+    )}
 `;
 
 interface Props {
   open: boolean;
+  /** Desktop-only: shrink the sidebar to an icon rail. Ignored on mobile (drawer). */
+  collapsed: boolean;
+  onToggleCollapse: () => void;
   conversations: ConversationSummary[];
   loading: boolean;
   activeId: string | null;
@@ -177,6 +287,7 @@ interface Props {
 
 export function Sidebar(props: Props) {
   const { mode, toggle } = useThemeMode();
+  const { collapsed } = props;
 
   const groups = useMemo(() => {
     const map = new Map<string, ConversationSummary[]>();
@@ -190,18 +301,31 @@ export function Sidebar(props: Props) {
   let index = 0;
 
   return (
-    <Aside $open={props.open} aria-label="Conversations">
-      <Top>
-        <Brand>
-          <span className="dot" /> AI Chat
-        </Brand>
-        <Button $block onClick={props.onNewChat}>
-          <Plus size={16} /> New chat
-        </Button>
-        <ProviderSelect providers={props.providers} value={props.provider} onChange={props.onProviderChange} disabled={props.sending} />
+    <Aside $open={props.open} $collapsed={collapsed} aria-label="Conversations">
+      <Top $collapsed={collapsed}>
+        <BrandRow $collapsed={collapsed}>
+          <Brand $collapsed={collapsed}>
+            <span className="dot" /> {appEnv.appName}
+          </Brand>
+          <CollapseBtn
+            type="button"
+            onClick={props.onToggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+          >
+            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </CollapseBtn>
+        </BrandRow>
+        <NewChatButton $block $collapsed={collapsed} onClick={props.onNewChat} title="New chat" aria-label="New chat">
+          <Plus size={16} /> <span className="label">New chat</span>
+        </NewChatButton>
+        <ProviderWrap $collapsed={collapsed}>
+          <ProviderSelect providers={props.providers} value={props.provider} onChange={props.onProviderChange} disabled={props.sending} />
+        </ProviderWrap>
       </Top>
 
-      <List>
+      <List $collapsed={collapsed}>
         {props.loading ? (
           <ConversationsSkeleton />
         ) : props.conversations.length === 0 ? (
@@ -244,9 +368,9 @@ export function Sidebar(props: Props) {
         )}
       </List>
 
-      <Bottom>
-        <Email title={props.userEmail}>{props.userEmail}</Email>
-        <IconButton type="button" onClick={toggle} aria-label="Toggle theme" title="Toggle theme">
+      <Bottom $collapsed={collapsed}>
+        <Email $collapsed={collapsed} title={props.userEmail}>{props.userEmail}</Email>
+        <IconButton type="button" onClick={toggle} aria-label="Toggle dark/light mode" title={mode === 'dark' ? 'Light mode' : 'Dark mode'}>
           {mode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </IconButton>
         <IconButton type="button" onClick={props.onLogout} aria-label="Log out" title="Log out">
