@@ -121,6 +121,35 @@ export const flowingBorder = (width = '1.5px') => css`
   }
 `;
 
+/**
+ * Circular gradient ring (conic primary → accent → primaryHover) drawn on a ::before layer.
+ * Host needs `position: relative`, `border-radius: 50%` and a transparent border of the same width.
+ * Pass `spinning` to rotate the ring (e.g. while a control is active).
+ */
+export const gradientRing = (width = '2px', spinning = false) => css`
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -${width};
+    padding: ${width};
+    border-radius: 50%;
+    pointer-events: none;
+    background: conic-gradient(
+      from 0deg,
+      ${({ theme }) => theme.colors.primary},
+      ${({ theme }) => theme.colors.accent},
+      ${({ theme }) => theme.colors.primaryHover},
+      ${({ theme }) => theme.colors.primary}
+    );
+    animation: ${spin} ${spinning ? '1.4s' : '6s'} linear infinite;
+    transition: opacity ${({ theme }) => theme.transitions.base};
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+`;
+
 /** Slow orbit for the aurora blobs — rotate + drift + breathe, loops seamlessly. */
 export const auroraDrift = keyframes`
   0%   { transform: translate(0, 0) rotate(0deg) scale(1); }

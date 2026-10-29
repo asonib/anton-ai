@@ -17,6 +17,8 @@ const resolvePalette = (raw: string | undefined): PaletteId => {
 export const appEnv = {
   appName: 'Anton AI',
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  /** Brand mark shown in the sidebar (served from `frontend/public/`, same file as the favicon). */
+  logoUrl: `${import.meta.env.BASE_URL}favicon.svg`,
   /** Colour palette chosen by the operator. Users can only switch dark/light within it. */
   themePalette: resolvePalette(import.meta.env.VITE_THEME_PALETTE),
 } as const;

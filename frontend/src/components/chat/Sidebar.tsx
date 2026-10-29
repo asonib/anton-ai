@@ -67,31 +67,52 @@ const BrandRow = styled.div<{ $collapsed: boolean }>`
   gap: ${({ theme }) => theme.space.sm};
   min-height: 30px;
 
-  ${({ $collapsed }) =>
+  ${({ $collapsed, theme }) =>
     whenCollapsed(
       $collapsed,
       css`
+        flex-direction: column;
         justify-content: center;
+        gap: ${theme.space.md};
       `,
     )}
 `;
 
-const Brand = styled.div<{ $collapsed: boolean }>`
+/** The app logo — visible in both the expanded sidebar and the collapsed icon rail. */
+const Logo = styled.img<{ $collapsed: boolean }>`
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: block;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  box-shadow: ${({ theme }) => theme.shadows.glow};
+  user-select: none;
+  transition: width ${({ theme }) => theme.transitions.slow}, height ${({ theme }) => theme.transitions.slow};
+
+  ${({ $collapsed }) =>
+    whenCollapsed(
+      $collapsed,
+      css`
+        width: 36px;
+        height: 36px;
+      `,
+    )}
+`;
+
+const Brand = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.space.sm};
+  min-width: 0;
   font-weight: 700;
   font-size: ${({ theme }) => theme.fontSizes.lg};
   letter-spacing: 0.02em;
   white-space: nowrap;
+`;
 
-  span.dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary}, ${({ theme }) => theme.colors.accent});
-    box-shadow: ${({ theme }) => theme.shadows.glow};
-  }
+const BrandName = styled.span<{ $collapsed: boolean }>`
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   ${({ $collapsed }) =>
     whenCollapsed(
@@ -304,8 +325,9 @@ export function Sidebar(props: Props) {
     <Aside $open={props.open} $collapsed={collapsed} aria-label="Conversations">
       <Top $collapsed={collapsed}>
         <BrandRow $collapsed={collapsed}>
-          <Brand $collapsed={collapsed}>
-            <span className="dot" /> {appEnv.appName}
+          <Brand title={appEnv.appName}>
+            <Logo $collapsed={collapsed} src={appEnv.logoUrl} alt={`${appEnv.appName} logo`} draggable={false} />
+            <BrandName $collapsed={collapsed}>{appEnv.appName}</BrandName>
           </Brand>
           <CollapseBtn
             type="button"
