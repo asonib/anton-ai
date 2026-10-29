@@ -1,0 +1,45 @@
+name: ai-chat
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai-chat-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_chat}
+      MYSQL_USER: ${MYSQL_USER:-chatapp}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chatapp_password}
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # 127.0.0.1 forces TCP, so the check only passes once the real server (not the init server) is up
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # Optional: `docker compose --profile ollama up -d ollama`, then
+  # `docker exec -it ai-chat-ollama ollama pull llama3.2`
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-chat-ollama
+    profiles: ["ollama"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  mysql_data:
+  ollama_data:
