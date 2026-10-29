@@ -17,6 +17,7 @@ function normalise(err: unknown): AppException {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') return new AppException('Resource already exists', 409, 'CONFLICT');
     if (err.code === 'P2025') return new AppException('Resource was not found', 404, 'RESOURCE_NOT_FOUND');
+    if (err.code === 'P2003') return new AppException('A related resource no longer exists', 409, 'FOREIGN_KEY_VIOLATION');
   }
   if (err instanceof Prisma.PrismaClientInitializationError) {
     return new AppException('Database is unavailable', 503, 'DATABASE_UNAVAILABLE');

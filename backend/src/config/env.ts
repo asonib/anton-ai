@@ -45,6 +45,13 @@ const envSchema = z
         'You are a helpful, precise AI assistant. Format answers in GitHub-flavored Markdown and use fenced code blocks with a language tag for any code.',
       ),
     CHAT_HISTORY_WINDOW: z.coerce.number().int().min(0).max(200).default(20),
+    /** Max number of images from earlier turns re-sent to the model as visual memory (0 = text placeholders only). */
+    CHAT_HISTORY_IMAGE_LIMIT: z.coerce.number().int().min(0).max(20).default(2),
+
+    ATTACHMENT_MAX_FILES: z.coerce.number().int().min(1).max(20).default(5),
+    ATTACHMENT_MAX_FILE_MB: z.coerce.number().positive().max(50).default(10),
+    /** Per-file cap on extracted document/code text injected into the prompt. */
+    ATTACHMENT_MAX_TEXT_CHARS: z.coerce.number().int().min(1_000).max(1_000_000).default(60_000),
 
     OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
     OLLAMA_MODEL: z.string().default('llama3.2'),

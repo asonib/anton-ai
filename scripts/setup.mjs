@@ -4,7 +4,7 @@
  *   1. copies .env.example → .env and backend/.env (if missing)
  *   2. installs root, backend and frontend dependencies
  *   3. starts MySQL via docker compose and waits for the healthcheck
- *   4. generates the Prisma client and applies migrations
+ *   4. generates the Prisma client and syncs the schema (prisma db push — no migrations)
  *
  * Flags: --skip-docker   (use an existing MySQL; DATABASE_URL must point at it)
  *        --skip-install
@@ -67,9 +67,9 @@ if (!args.has('--skip-docker')) {
   }
 }
 
-step('Prisma: generate client + apply migrations');
+step('Prisma: generate client + push schema');
 run('npx prisma generate', join(root, 'backend'));
-run('npx prisma migrate deploy', join(root, 'backend'));
+run('npx prisma db push --skip-generate', join(root, 'backend'));
 
 console.log(`\n${c.green('✔ Setup complete.')}
 

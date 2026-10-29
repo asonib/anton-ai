@@ -15,8 +15,7 @@
     "db:up": "docker compose up -d --wait mysql",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f mysql",
-    "db:migrate": "npm --prefix backend run prisma:migrate",
-    "db:deploy": "npm --prefix backend run prisma:deploy",
+    "db:push": "npm --prefix backend run prisma:push",
     "db:reset": "npm --prefix backend run prisma:reset",
     "db:studio": "npm --prefix backend run prisma:studio",
     "ollama:up": "docker compose --profile ollama up -d ollama"

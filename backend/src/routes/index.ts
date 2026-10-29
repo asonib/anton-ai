@@ -11,5 +11,6 @@ export function apiRoutes(container: Container): Router {
   router.use('/auth', authRoutes(container));
   router.use('/chats', chatRoutes(container));
   router.get('/providers', container.authMiddleware, asyncHandler(container.controllers.provider.list));
+  router.get('/attachments/:attachmentId/content', container.authMiddleware, asyncHandler(container.controllers.attachment.content));
   return router;
 }

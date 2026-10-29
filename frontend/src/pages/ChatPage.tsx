@@ -8,6 +8,7 @@ import { Sidebar } from '../components/chat/Sidebar';
 import { IconButton } from '../components/common/Button';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
+import { useAttachments } from '../hooks/useAttachments';
 import { useChat } from '../hooks/useChat';
 import { appEnv } from '../config/env';
 import { fadeIn } from '../styles/animations';
@@ -66,6 +67,7 @@ const Composer = styled.div`
 export function ChatPage() {
   const { user, logout } = useAuth();
   const chat = useChat();
+  const attachments = useAttachments();
   const [draft, setDraft] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(storage.getSidebarCollapsed);
@@ -92,10 +94,19 @@ export function ChatPage() {
 
   const submit = async (text = draft) => {
     const value = text.trim();
-    if (!value) return;
+    const files = attachments.items;
+    if (!value && files.length === 0) return;
     setDraft('');
-    const ok = await chat.sendPrompt(value);
-    if (!ok) setDraft(value); // restore so the user can retry
+    attachments.detach();
+    attachments.dismissError();
+    const ok = await chat.sendPrompt(value, files);
+    if (ok) {
+      attachments.release(files);
+    } else {
+      // restore so the user can retry
+      setDraft(value);
+      attachments.restore(files);
+    }
   };
 
   const closeSidebarThen = (fn: () => void) => () => {
@@ -145,12 +156,16 @@ export function ChatPage() {
 
         <Composer>
           {chat.error && <ErrorBanner message={chat.error.message} details={chat.error.details} onDismiss={chat.dismissError} />}
+          {attachments.error && <ErrorBanner message={attachments.error} onDismiss={attachments.dismissError} />}
           <PromptInput
             value={draft}
             onChange={setDraft}
             onSubmit={() => void submit()}
             disabled={chat.sending}
             placeholder={`Message ${providerLabel}…`}
+            attachments={attachments.items}
+            onAddFiles={attachments.add}
+            onRemoveAttachment={attachments.remove}
           />
         </Composer>
       </Main>

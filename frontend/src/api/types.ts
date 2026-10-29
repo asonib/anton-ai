@@ -1,6 +1,7 @@
 /** Mirrors the backend DTOs + standard response envelopes. */
 export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini';
 export type MessageRole = 'user' | 'assistant';
+export type AttachmentKind = 'image' | 'document' | 'code';
 
 export interface ApiSuccess<T> {
   success: true;
@@ -51,6 +52,16 @@ export interface ConversationSummary extends Conversation {
   lastProvider: string | null;
 }
 
+/** Attachment metadata; bytes come from GET /attachments/:id/content. */
+export interface Attachment {
+  id: string;
+  kind: AttachmentKind;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
@@ -59,12 +70,15 @@ export interface ChatMessage {
   provider: string | null;
   modelName: string | null;
   createdAt: string;
+  attachments: Attachment[];
 }
 
 export interface PromptRequest {
   conversationId?: string;
   prompt: string;
   provider?: LLMProvider;
+  /** When present the request is sent as multipart/form-data. */
+  files?: File[];
 }
 
 export interface PromptResult {

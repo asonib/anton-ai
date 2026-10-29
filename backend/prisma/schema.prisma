@@ -1,5 +1,5 @@
-// Prisma schema — MySQL 8. Every Conversation and Message is owned by a User
-// (user_id) so all data access can be strictly scoped to the JWT subject.
+// Prisma schema — MySQL 8. Every Conversation, Message and Attachment is owned
+// by a User (user_id) so all data access can be strictly scoped to the JWT subject.
 
 generator client {
   provider = "prisma-client-js"
@@ -15,6 +15,12 @@ enum MessageRole {
   assistant
 }
 
+enum AttachmentKind {
+  image
+  document
+  code
+}
+
 model User {
   id            String         @id @default(uuid()) @db.Char(36)
   email         String         @unique @db.VarChar(255)
@@ -22,6 +28,7 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at")
   conversations Conversation[]
   messages      Message[]
+  attachments   Attachment[]
 
   @@map("users")
 }
@@ -50,8 +57,31 @@ model Message {
   createdAt      DateTime     @default(now()) @map("created_at")
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments    Attachment[]
 
   @@index([conversationId, createdAt])
   @@index([userId])
   @@map("messages")
+}
+
+/// A file uploaded with a user prompt. Raw bytes are kept so the file can be
+/// re-opened from chat history; `extractedText` (documents/code) is what gets
+/// injected into the LLM prompt and conversation memory.
+model Attachment {
+  id            String         @id @default(uuid()) @db.Char(36)
+  messageId     String         @map("message_id") @db.Char(36)
+  userId        String         @map("user_id") @db.Char(36)
+  kind          AttachmentKind
+  fileName      String         @map("file_name") @db.VarChar(255)
+  mimeType      String         @map("mime_type") @db.VarChar(127)
+  sizeBytes     Int            @map("size_bytes")
+  data          Bytes          @db.LongBlob
+  extractedText String?        @map("extracted_text") @db.LongText
+  createdAt     DateTime       @default(now()) @map("created_at")
+  message       Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([userId])
+  @@map("attachments")
 }

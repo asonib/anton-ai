@@ -1,5 +1,6 @@
 import type { Conversation, Message, User } from '@prisma/client';
-import type { ConversationDTO, MessageDTO, UserDTO } from './types';
+import type { AttachmentMeta } from './repositories/attachment.repository';
+import type { AttachmentDTO, ConversationDTO, MessageDTO, UserDTO } from './types';
 
 /** Entity → DTO mappers. Keep persistence shapes from leaking to the HTTP layer. */
 export const toUserDTO = (u: User): UserDTO => ({
@@ -15,7 +16,16 @@ export const toConversationDTO = (c: Conversation): ConversationDTO => ({
   updatedAt: c.updatedAt.toISOString(),
 });
 
-export const toMessageDTO = (m: Message): MessageDTO => ({
+export const toAttachmentDTO = (a: AttachmentMeta): AttachmentDTO => ({
+  id: a.id,
+  kind: a.kind,
+  fileName: a.fileName,
+  mimeType: a.mimeType,
+  sizeBytes: a.sizeBytes,
+  createdAt: a.createdAt.toISOString(),
+});
+
+export const toMessageDTO = (m: Message & { attachments?: AttachmentMeta[] }): MessageDTO => ({
   id: m.id,
   conversationId: m.conversationId,
   role: m.role,
@@ -23,4 +33,5 @@ export const toMessageDTO = (m: Message): MessageDTO => ({
   provider: m.provider,
   modelName: m.modelName,
   createdAt: m.createdAt.toISOString(),
+  attachments: (m.attachments ?? []).map(toAttachmentDTO),
 });

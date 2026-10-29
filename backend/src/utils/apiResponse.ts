@@ -32,4 +32,15 @@ export const ApiResponse = {
   noContent(res: Response): Response {
     return res.status(204).send();
   },
+  /** Binary download. Only images are ever served inline; everything else is forced to download. */
+  file(res: Response, file: { fileName: string; mimeType: string; data: Buffer }, { inline = false } = {}): Response {
+    const ascii = file.fileName.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+    const encoded = encodeURIComponent(file.fileName).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+    res.setHeader('Content-Type', inline ? file.mimeType : 'application/octet-stream');
+    res.setHeader('Content-Length', String(file.data.length));
+    res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encoded}`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; sandbox");
+    return res.status(200).end(file.data);
+  },
 };

@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { ConflictException, ResourceNotFoundException, UnauthorizedException } from '../exceptions';
 import { toUserDTO } from '../models/mappers';
 import type { UserRepository } from '../models/repositories/user.repository';
-import type { AuthResultDTO, UserDTO } from '../models/types';
+import type { AuthResultDTO, AuthUser, UserDTO } from '../models/types';
 import type { TokenService } from './token.service';
 
 export class AuthService {
@@ -36,6 +36,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid e-mail or password', 'INVALID_CREDENTIALS');
     }
     return this.buildAuthResult(toUserDTO(user));
+  }
+
+  /**
+   * Verifies a bearer token AND that its subject still exists. A valid signature alone is not
+   * enough: after a DB reset an old token would otherwise reach the services and fail with a
+   * foreign-key error. Returning 401 makes the frontend clear the session and show the login page.
+   */
+  async authenticate(token: string): Promise<AuthUser> {
+    const claims = this.tokens.verify(token);
+    const user = await this.users.findById(claims.id);
+    if (!user) throw new UnauthorizedException('Your session is no longer valid — please sign in again', 'ACCOUNT_NOT_FOUND');
+    return { id: user.id, email: user.email };
   }
 
   async getProfile(userId: string): Promise<UserDTO> {

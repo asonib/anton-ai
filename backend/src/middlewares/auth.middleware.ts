@@ -1,15 +1,15 @@
 import type { RequestHandler } from 'express';
 import { UnauthorizedException } from '../exceptions';
-import type { TokenService } from '../services/token.service';
+import type { AuthService } from '../services/auth.service';
 
 /**
- * JWT Bearer authentication filter.
+ * JWT Bearer authentication filter (signature, expiry AND that the user still exists).
  * On success sets `req.user = { id, email }`; downstream code MUST use
  * `req.user.id` (never a client-supplied user id) to scope data access.
  */
 export const createAuthMiddleware =
-  (tokens: TokenService): RequestHandler =>
-  (req, _res, next) => {
+  (auth: AuthService): RequestHandler =>
+  async (req, _res, next) => {
     const header = req.headers.authorization;
     if (!header) return next(new UnauthorizedException('Missing Authorization header'));
 
@@ -19,7 +19,7 @@ export const createAuthMiddleware =
     }
 
     try {
-      req.user = tokens.verify(token.trim());
+      req.user = await auth.authenticate(token.trim());
       return next();
     } catch (error) {
       return next(error);
