@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { chatApi } from '../api/chatApi';
 import type { ChatMessage, ConversationSummary, LLMProvider, ProviderInfo } from '../api/types';
 import { NormalisedError, toNormalisedError } from '../utils/errors';
+import type { DisplayAttachment, PendingAttachment } from './useAttachments';
 import { storage } from '../utils/storage';
 
 const FALLBACK_PROVIDERS: ProviderInfo[] = [
@@ -16,6 +17,7 @@ const isProvider = (v: string | null): v is LLMProvider =>
 
 export interface UiMessage extends ChatMessage {
   pending?: boolean;
+  attachments: DisplayAttachment[];
 }
 
 /**
@@ -103,9 +105,9 @@ export function useChat() {
 
   /** Returns true on success so the input can restore the draft on failure. */
   const sendPrompt = useCallback(
-    async (prompt: string): Promise<boolean> => {
+    async (prompt: string, files: PendingAttachment[] = []): Promise<boolean> => {
       const text = prompt.trim();
-      if (!text || sending) return false;
+      if ((!text && files.length === 0) || sending) return false;
 
       const originId = activeRef.current;
       const tempId = `temp-${Date.now()}`;
@@ -118,6 +120,15 @@ export function useChat() {
         modelName: null,
         createdAt: new Date().toISOString(),
         pending: true,
+        attachments: files.map((f) => ({
+          id: `temp-${f.id}`,
+          kind: f.kind,
+          fileName: f.file.name,
+          mimeType: f.file.type,
+          sizeBytes: f.file.size,
+          createdAt: new Date().toISOString(),
+          localUrl: f.previewUrl ?? undefined,
+        })),
       };
 
       setError(null);
@@ -125,7 +136,12 @@ export function useChat() {
       setMessages((m) => [...m, optimistic]);
 
       try {
-        const res = await chatApi.sendPrompt({ conversationId: originId ?? undefined, prompt: text, provider });
+        const res = await chatApi.sendPrompt({
+          conversationId: originId ?? undefined,
+          prompt: text,
+          provider,
+          files: files.map((f) => f.file),
+        });
 
         // Only paint into the viewport if the user is still on the originating thread.
         if (activeRef.current === originId) {

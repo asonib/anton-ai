@@ -1,9 +1,27 @@
-import type { Message as MessageEntity } from '@prisma/client';
 import type { LLMProvider } from '../config/env';
 import { llmDefaults } from '../config/llm.config';
-import type { LLMOptions, LLMResponse, Message, ProviderInfo } from '../strategies/llm.types';
+import type { MessageWithMemory } from '../models/repositories/message.repository';
+import type { AttachmentKindValue } from '../models/types';
+import type { LLMImage, LLMOptions, LLMResponse, Message, ProviderInfo } from '../strategies/llm.types';
 import type { LLMStrategyFactory } from '../strategies/LLMStrategyFactory';
+import { codeLanguageFor } from '../utils/fileTypes';
 import { logger } from '../utils/logger';
+
+/** What the prompt composer needs to know about an attachment. */
+export interface PromptAttachment {
+  kind: AttachmentKindValue;
+  fileName: string;
+  extractedText: string | null;
+}
+
+export interface GenerateInput {
+  prompt: string;
+  attachments: PromptAttachment[];
+  images: LLMImage[];
+}
+
+/** Used when the user sends files without typing anything. */
+export const DEFAULT_ATTACHMENT_PROMPT = 'Please review the attached file(s) and summarise the key points.';
 
 /**
  * LLM orchestration service: picks the strategy (via the factory), converts
@@ -14,6 +32,7 @@ export class LLMService {
   constructor(
     private readonly factory: LLMStrategyFactory,
     private readonly historyWindow: number = llmDefaults.historyWindow,
+    private readonly historyImageLimit: number = llmDefaults.historyImageLimit,
   ) {}
 
   get memoryWindow(): number {
@@ -30,18 +49,74 @@ export class LLMService {
     return { provider: strategy.provider, model: model?.trim() || strategy.defaultModel };
   }
 
-  buildMemory(history: MessageEntity[]): Message[] {
-    return history.slice(-this.historyWindow).map((m) => ({ role: m.role, content: m.content }));
+  /**
+   * Text sent to the model for one user turn: the typed prompt followed by every
+   * document/code attachment wrapped in an <attachment> block. Images are listed
+   * by name here and sent separately as image parts.
+   */
+  composeUserContent(prompt: string, attachments: PromptAttachment[]): string {
+    const text = prompt.trim() || (attachments.length > 0 ? DEFAULT_ATTACHMENT_PROMPT : '');
+    if (attachments.length === 0) return text;
+
+    const blocks = attachments.map((a) => {
+      const name = a.fileName.replace(/"/g, "'");
+      if (a.kind === 'image') return `<attachment name="${name}" type="image" />`;
+      const body = a.extractedText ?? '';
+      const fenced = a.kind === 'code' ? `\`\`\`${codeLanguageFor(a.fileName) ?? ''}\n${body}\n\`\`\`` : body;
+      return `<attachment name="${name}" type="${a.kind}">\n${fenced}\n</attachment>`;
+    });
+    return `${text}\n\n${blocks.join('\n\n')}`;
+  }
+
+  /** Ids of the most recent history images that should be re-sent to the model. */
+  pickHistoryImageIds(history: MessageWithMemory[]): string[] {
+    if (this.historyImageLimit <= 0) return [];
+    const ids = this.windowed(history)
+      .filter((m) => m.role === 'user')
+      .flatMap((m) => m.attachments.filter((a) => a.kind === 'image').map((a) => a.id));
+    return ids.slice(-this.historyImageLimit);
+  }
+
+  /** DB history → provider-agnostic memory (attachments folded into user turns). */
+  buildMemory(history: MessageWithMemory[], historyImages: Map<string, LLMImage> = new Map()): Message[] {
+    return this.windowed(history).map((m) => {
+      if (m.role !== 'user' || m.attachments.length === 0) return { role: m.role, content: m.content };
+      const images = m.attachments.flatMap((a) => {
+        const img = historyImages.get(a.id);
+        return img ? [img] : [];
+      });
+      return {
+        role: m.role,
+        content: this.composeUserContent(m.content, m.attachments),
+        ...(images.length ? { images } : {}),
+      };
+    });
   }
 
   async generate(
-    prompt: string,
-    history: MessageEntity[],
+    input: GenerateInput,
+    history: MessageWithMemory[],
     provider?: string | null,
     options: LLMOptions = {},
+    historyImages: Map<string, LLMImage> = new Map(),
   ): Promise<LLMResponse> {
     const strategy = this.factory.resolve(provider);
-    logger.info('Invoking LLM', { provider: strategy.provider, model: options.model ?? strategy.defaultModel, historySize: history.length });
-    return strategy.generateResponse(prompt, this.buildMemory(history), options);
+    logger.info('Invoking LLM', {
+      provider: strategy.provider,
+      model: options.model ?? strategy.defaultModel,
+      historySize: history.length,
+      attachments: input.attachments.length,
+      images: input.images.length + historyImages.size,
+    });
+    return strategy.generateResponse(
+      this.composeUserContent(input.prompt, input.attachments),
+      this.buildMemory(history, historyImages),
+      options,
+      input.images,
+    );
+  }
+
+  private windowed<T>(history: T[]): T[] {
+    return history.slice(-this.historyWindow);
   }
 }

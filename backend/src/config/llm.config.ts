@@ -17,6 +17,7 @@ export interface LLMRuntimeDefaults {
   timeoutMs: number;
   systemPrompt: string;
   historyWindow: number;
+  historyImageLimit: number;
 }
 
 export const llmDefaults: LLMRuntimeDefaults = Object.freeze({
@@ -25,6 +26,7 @@ export const llmDefaults: LLMRuntimeDefaults = Object.freeze({
   timeoutMs: env.LLM_TIMEOUT_MS,
   systemPrompt: env.LLM_SYSTEM_PROMPT,
   historyWindow: env.CHAT_HISTORY_WINDOW,
+  historyImageLimit: env.CHAT_HISTORY_IMAGE_LIMIT,
 });
 
 export const providerSettings: Readonly<Record<LLMProvider, ProviderSettings>> = Object.freeze({

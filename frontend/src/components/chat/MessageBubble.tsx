@@ -6,6 +6,7 @@ import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { messageEnter, popIn } from '../../styles/animations';
 import { formatTime } from '../../utils/format';
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
+import { MessageAttachments } from './Attachments';
 import { Avatar } from './Avatar';
 
 const Row = styled.div<{ $isUser: boolean }>`
@@ -91,8 +92,9 @@ function MessageBubbleImpl({ message }: { message: UiMessage }) {
     <Row $isUser={isUser}>
       <Avatar kind={isUser ? 'user' : 'assistant'} />
       <Column $isUser={isUser}>
+        {message.attachments?.length > 0 && <MessageAttachments attachments={message.attachments} alignEnd={isUser} />}
         {isUser ? (
-          <UserBubble $pending={message.pending}>{message.content}</UserBubble>
+          message.content && <UserBubble $pending={message.pending}>{message.content}</UserBubble>
         ) : (
           <AssistantBubble>
             <MarkdownRenderer content={message.content} />

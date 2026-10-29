@@ -36,6 +36,18 @@ export interface ConversationSummaryDTO extends ConversationDTO {
   lastProvider: string | null;
 }
 
+export type AttachmentKindValue = 'image' | 'document' | 'code';
+
+/** Attachment metadata only — bytes are served by GET /attachments/:id/content. */
+export interface AttachmentDTO {
+  id: string;
+  kind: AttachmentKindValue;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 export interface MessageDTO {
   id: string;
   conversationId: string;
@@ -44,6 +56,34 @@ export interface MessageDTO {
   provider: string | null;
   modelName: string | null;
   createdAt: string;
+  attachments: AttachmentDTO[];
+}
+
+/** A file as received over HTTP, already detached from the transport (multer) types. */
+export interface UploadedFile {
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  buffer: Buffer;
+}
+
+/** A validated upload, ready to be sent to the LLM and persisted. */
+export interface PreparedAttachment {
+  kind: AttachmentKindValue;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  data: Buffer;
+  /** Text injected into the prompt (documents/code); null for images. */
+  extractedText: string | null;
+}
+
+/** Binary content of a stored attachment. */
+export interface AttachmentFile {
+  fileName: string;
+  mimeType: string;
+  kind: AttachmentKindValue;
+  data: Buffer;
 }
 
 export interface PromptResultDTO {

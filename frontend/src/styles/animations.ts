@@ -169,3 +169,9 @@ export const dropdownEnter = keyframes`
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 `;
+
+/** Pop-up menu entrance for menus anchored ABOVE their trigger (e.g. the composer attach menu). */
+export const dropupEnter = keyframes`
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+`;

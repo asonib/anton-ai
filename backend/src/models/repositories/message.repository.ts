@@ -1,5 +1,6 @@
 import type { Message, MessageRole, PrismaClient } from '@prisma/client';
 import type { DbClient } from '../prisma.client';
+import { AttachmentMemory, attachmentMemorySelect, AttachmentMeta, attachmentMetaSelect } from './attachment.repository';
 
 export interface CreateMessageInput {
   conversationId: string;
@@ -11,14 +12,18 @@ export interface CreateMessageInput {
   createdAt?: Date;
 }
 
+export type MessageWithAttachments = Message & { attachments: AttachmentMeta[] };
+export type MessageWithMemory = Message & { attachments: AttachmentMemory[] };
+
 /** Data-access for messages. All reads are scoped by both conversationId AND userId. */
 export class MessageRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  listForConversation(conversationId: string, userId: string, db: DbClient = this.prisma): Promise<Message[]> {
+  listForConversation(conversationId: string, userId: string, db: DbClient = this.prisma): Promise<MessageWithAttachments[]> {
     return db.message.findMany({
       where: { conversationId, userId },
       orderBy: [{ createdAt: 'asc' }, { role: 'asc' }],
+      include: { attachments: { select: attachmentMetaSelect, orderBy: { createdAt: 'asc' } } },
     });
   }
 
@@ -28,12 +33,13 @@ export class MessageRepository {
     userId: string,
     limit: number,
     db: DbClient = this.prisma,
-  ): Promise<Message[]> {
+  ): Promise<MessageWithMemory[]> {
     if (limit <= 0) return [];
     const rows = await db.message.findMany({
       where: { conversationId, userId },
       orderBy: { createdAt: 'desc' },
       take: limit,
+      include: { attachments: { select: attachmentMemorySelect, orderBy: { createdAt: 'asc' } } },
     });
     return rows.reverse();
   }

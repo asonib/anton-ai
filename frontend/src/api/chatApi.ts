@@ -20,9 +20,29 @@ export const chatApi = {
     );
     return data.data;
   },
-  async sendPrompt(body: PromptRequest): Promise<PromptResult> {
-    const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', body);
+  async sendPrompt({ files, ...fields }: PromptRequest): Promise<PromptResult> {
+    if (!files?.length) {
+      const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', fields);
+      return data.data;
+    }
+    const form = new FormData();
+    form.append('prompt', fields.prompt);
+    if (fields.conversationId) form.append('conversationId', fields.conversationId);
+    if (fields.provider) form.append('provider', fields.provider);
+    files.forEach((file) => form.append('files', file, file.name));
+    // Explicit multipart type stops axios from JSON-serialising the FormData (the instance default
+    // is application/json); the browser then fills in the boundary.
+    const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data.data;
+  },
+  /** Raw bytes of a stored attachment (authorised via the shared axios instance). */
+  async getAttachmentBlob(attachmentId: string): Promise<Blob> {
+    const { data } = await http.get<Blob>(`/attachments/${encodeURIComponent(attachmentId)}/content`, {
+      responseType: 'blob',
+    });
+    return data;
   },
   async deleteConversation(conversationId: string): Promise<void> {
     await http.delete(`/chats/${encodeURIComponent(conversationId)}`);

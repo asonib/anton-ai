@@ -14,7 +14,7 @@ Anton AI is a multi-provider AI chat application written in TypeScript end-to-en
 Prerequisites: **Node 18.18+** (20 LTS recommended), **Docker Desktop**, and for the default provider **[Ollama](https://ollama.com)** with a model pulled.
 
 ```bash
-npm run setup          # env files → npm install (root/backend/frontend) → MySQL up → prisma generate + migrate deploy
+npm run setup          # env files → npm install (root/backend/frontend) → MySQL up → prisma generate + db push
 ollama pull llama3.2   # default model (or set API keys in backend/.env)
 npm run dev            # API on :4000 + Web on :5173, one terminal
 ```
@@ -58,9 +58,8 @@ The left sidebar can be collapsed to an icon rail on desktop (button in the side
 | `npm run build` | `tsc` backend → `backend/dist`, Vite build → `frontend/dist` |
 | `npm run typecheck` | Type-check both apps |
 | `npm run db:up` / `db:down` | Start/stop MySQL container |
-| `npm run db:migrate` | `prisma migrate dev` (create a new migration after editing `schema.prisma`) |
-| `npm run db:deploy` | Apply committed migrations |
-| `npm run db:reset` | Drop + re-apply (dev only) |
+| `npm run db:push` | Sync the DB to `schema.prisma` (`prisma db push`; no migration files) |
+| `npm run db:reset` | Drop all tables and recreate them from the schema (dev only, destroys data) |
 | `npm run db:studio` | Prisma Studio |
 
 ## REST API (`/api/v1`)
@@ -74,8 +73,9 @@ All responses use one envelope: `{ success: true, data, meta? }` or `{ success: 
 | GET | `/auth/me` | Bearer | Current profile |
 | GET | `/chats?limit&offset` | Bearer | Conversations of the logged-in user (newest first) |
 | GET | `/chats/:conversationId/messages` | Bearer | Full thread history |
-| POST | `/chats/prompt` | Bearer | `{ conversationId?, prompt, provider?, model?, temperature? }` → `{ conversation, userMessage, assistantMessage, provider, model, usage, latencyMs }` |
+| POST | `/chats/prompt` | Bearer | JSON `{ conversationId?, prompt, provider?, model?, temperature? }` **or** `multipart/form-data` with the same fields + up to 5 `files` → `{ conversation, userMessage, assistantMessage, provider, model, usage, latencyMs }`. `prompt` may be empty when files are attached. Messages include `attachments[]` metadata. |
 | DELETE | `/chats/:conversationId` | Bearer | Delete a thread |
+| GET | `/attachments/:attachmentId/content` | Bearer | Raw bytes of one of your attachments (images inline, other files as a download) |
 | GET | `/providers` | Bearer | Registered LLM providers + configured/default flags |
 | GET | `/health` | – | DB liveness |
 
@@ -87,14 +87,34 @@ TOKEN=$(curl -s localhost:4000/api/v1/auth/login -H 'content-type: application/j
 
 curl -s localhost:4000/api/v1/chats/prompt -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' -d '{"prompt":"Explain the Strategy pattern","provider":"ollama"}' | jq
+
+# With attachments (multipart)
+curl -s localhost:4000/api/v1/chats/prompt -H "authorization: Bearer $TOKEN" \
+  -F prompt='What does this code do?' -F provider=anthropic -F files=@src/app.ts -F files=@diagram.png | jq
 ```
+
+### Attachments
+
+The composer's paperclip menu offers **Image**, **Document** and **Code** pickers (drag-and-drop and paste also work).
+Files are validated on the server by content (magic bytes), stored in MySQL (`attachments` table, `LONGBLOB`) and
+handled per type:
+
+| Kind | Accepted | Sent to the model as |
+| --- | --- | --- |
+| image | PNG, JPEG, GIF, WebP | image input (needs a vision model, e.g. `llava`/`llama3.2-vision` on Ollama, GPT-4o, Claude, Gemini) |
+| document | PDF, DOCX, TXT, MD, CSV, TSV, LOG | extracted text inside an `<attachment>` block |
+| code | common source/config extensions, `Dockerfile`, `Makefile` | fenced code block inside an `<attachment>` block |
+
+Limits: `ATTACHMENT_MAX_FILES` (5), `ATTACHMENT_MAX_FILE_MB` (10), `ATTACHMENT_MAX_TEXT_CHARS` (60 000 per file).
+Extracted text stays in conversation memory; the last `CHAT_HISTORY_IMAGE_LIMIT` (2) images are re-sent on follow-ups.
+If you change the limits, mirror them in `frontend/src/config/attachments.ts`.
 
 ## Project layout
 
 ```
 .
 ├── backend/
-│   ├── prisma/                  schema.prisma + migrations
+│   ├── prisma/                  schema.prisma (synced with `prisma db push`)
 │   └── src/
 │       ├── config/              env loader (zod) + provider settings
 │       ├── controllers/         HTTP adapters (validate → service → envelope)

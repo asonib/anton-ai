@@ -6,12 +6,17 @@ import { llmDefaults, ProviderSettings } from '../config/llm.config';
 import { LLMProviderException } from '../exceptions';
 import { logger } from '../utils/logger';
 import type { ILLMStrategy } from './ILLMStrategy';
-import type { LLMOptions, LLMResponse, LLMUsage, Message, ResolvedLLMOptions } from './llm.types';
+import type { LLMImage, LLMOptions, LLMResponse, LLMUsage, Message, ResolvedLLMOptions } from './llm.types';
+
+/** Upstream messages that mean "this model can't take images" (Ollama, OpenAI, Gemini wording). */
+const LACKS_VISION =
+  /(support|capab|cannot|can't|not allowed).{0,40}(image|vision|multimodal)|(image|vision|multimodal).{0,40}(not supported|unsupported|not enabled)|missing data required for image/i;
 
 /**
  * Template Method base for LangChain-backed strategies.
  *
- *  - Prompt templating:   ChatPromptTemplate(system → {history} → human)
+ *  - Prompt templating:   ChatPromptTemplate(system → {history} → {input})
+ *  - Multimodal input:    images become `image_url` data-URL parts (supported by all LangChain chat models we use)
  *  - Conversation memory: DB history (windowed by the service) → LangChain BaseMessage[]
  *  - Error normalisation: any upstream failure → LLMProviderException
  *
@@ -25,7 +30,8 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
   protected static readonly promptTemplate = ChatPromptTemplate.fromMessages([
     ['system', '{systemPrompt}'],
     new MessagesPlaceholder('history'),
-    ['human', '{input}'],
+    // The human turn is injected as a message (not an f-string) so it can carry image parts.
+    new MessagesPlaceholder('input'),
   ]);
 
   protected constructor(protected readonly settings: ProviderSettings) {
@@ -41,7 +47,12 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
     return Boolean(this.settings.apiKey);
   }
 
-  async generateResponse(prompt: string, history: Message[] = [], options: LLMOptions = {}): Promise<LLMResponse> {
+  async generateResponse(
+    prompt: string,
+    history: Message[] = [],
+    options: LLMOptions = {},
+    images: LLMImage[] = [],
+  ): Promise<LLMResponse> {
     if (!this.isConfigured()) {
       throw new LLMProviderException(
         this.provider,
@@ -60,12 +71,12 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
         {
           systemPrompt: resolved.systemPrompt,
           history: this.toLangChainHistory(history),
-          input: prompt,
+          input: [this.toHumanMessage(prompt, images)],
         },
         { signal: AbortSignal.timeout(resolved.timeoutMs) },
       );
     } catch (error) {
-      throw this.normaliseError(error, resolved);
+      throw this.normaliseError(error, resolved, images.length > 0 || history.some((m) => m.images?.length));
     }
 
     const content = this.extractText(result).trim();
@@ -98,9 +109,21 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
     };
   }
 
+  /** Plain text, or a multimodal content array when images are attached. */
+  protected toHumanMessage(text: string, images: LLMImage[] = []): HumanMessage {
+    if (images.length === 0) return new HumanMessage(text);
+    return new HumanMessage({
+      content: [
+        // Some providers (Anthropic) reject empty text blocks.
+        ...(text.trim() ? [{ type: 'text' as const, text }] : []),
+        ...images.map((img) => ({ type: 'image_url' as const, image_url: { url: `data:${img.mimeType};base64,${img.base64}` } })),
+      ],
+    });
+  }
+
   protected toLangChainHistory(history: Message[]): BaseMessage[] {
     return history
-      .filter((m) => m.content.trim().length > 0)
+      .filter((m) => m.content.trim().length > 0 || (m.images?.length ?? 0) > 0)
       .map((m) => {
         switch (m.role) {
           case 'assistant':
@@ -108,7 +131,7 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
           case 'system':
             return new SystemMessage(m.content);
           default:
-            return new HumanMessage(m.content);
+            return this.toHumanMessage(m.content, m.images);
         }
       });
   }
@@ -141,7 +164,7 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
   }
 
   /** Map heterogeneous SDK / network errors onto our domain exception. */
-  protected normaliseError(error: unknown, options: ResolvedLLMOptions): LLMProviderException {
+  protected normaliseError(error: unknown, options: ResolvedLLMOptions, sentImages = false): LLMProviderException {
     if (error instanceof LLMProviderException) return error;
 
     const err = error as { name?: string; message?: string; status?: number; code?: string; cause?: { code?: string } };
@@ -162,6 +185,14 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
     }
     if (status === 429 || /rate limit|quota/i.test(message)) {
       return new LLMProviderException(this.provider, 'Provider rate limit or quota exceeded', 'LLM_PROVIDER_RATE_LIMITED', error);
+    }
+    if (sentImages && LACKS_VISION.test(message)) {
+      return new LLMProviderException(
+        this.provider,
+        `Model '${options.model}' does not appear to support image input — choose a vision-capable model or remove the image`,
+        'LLM_PROVIDER_ERROR',
+        error,
+      );
     }
     if (status === 404 || /not found/i.test(message)) {
       return new LLMProviderException(this.provider, `Model '${options.model}' was not found on the provider`, 'LLM_PROVIDER_ERROR', error);
