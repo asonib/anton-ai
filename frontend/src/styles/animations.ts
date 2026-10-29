@@ -120,3 +120,52 @@ export const flowingBorder = (width = '1.5px') => css`
     mask-composite: exclude;
   }
 `;
+
+/** Slow orbit for the aurora blobs — rotate + drift + breathe, loops seamlessly. */
+export const auroraDrift = keyframes`
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
+  33%  { transform: translate(4%, -3%) rotate(120deg) scale(1.08); }
+  66%  { transform: translate(-3%, 4%) rotate(240deg) scale(0.96); }
+  100% { transform: translate(0, 0) rotate(360deg) scale(1); }
+`;
+
+/**
+ * Soft, blurred, animated gradient "aurora" built from the palette's primary / accent / primaryHover.
+ * Apply to an absolutely-positioned, `pointer-events: none` layer that fills its container.
+ * Two counter-rotating ::before / ::after layers give a slowly morphing blend; edges fade via a radial mask.
+ */
+export const auroraBackdrop = css`
+  overflow: hidden;
+  -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 45%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 45%, #000 30%, transparent 100%);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -40%;
+    filter: blur(70px);
+    will-change: transform;
+  }
+
+  &::before {
+    background:
+      radial-gradient(circle at 30% 35%, ${({ theme }) => theme.colors.primary} 0%, transparent 28%),
+      radial-gradient(circle at 70% 60%, ${({ theme }) => theme.colors.accent} 0%, transparent 24%);
+    animation: ${auroraDrift} 26s ease-in-out infinite;
+  }
+
+  &::after {
+    background:
+      radial-gradient(circle at 60% 30%, ${({ theme }) => theme.colors.primaryHover} 0%, transparent 26%),
+      radial-gradient(circle at 35% 70%, ${({ theme }) => theme.colors.primary} 0%, transparent 22%);
+    animation: ${auroraDrift} 34s ease-in-out infinite reverse;
+    opacity: 0.8;
+  }
+`;
+
+/** Dropdown / popover entrance — slight drop + scale from the top edge. */
+export const dropdownEnter = keyframes`
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+`;
