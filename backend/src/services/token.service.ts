@@ -8,8 +8,8 @@ interface AccessTokenClaims extends JwtPayload {
   email: string;
 }
 
-const ISSUER = 'ai-chat-api';
-const AUDIENCE = 'ai-chat-web';
+const ISSUER = 'anton-ai-api';
+const AUDIENCE = 'anton-ai-web';
 
 /** Issues and verifies HS256 access tokens. */
 export class TokenService {

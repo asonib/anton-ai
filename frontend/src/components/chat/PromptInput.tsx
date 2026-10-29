@@ -1,6 +1,7 @@
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, X } from 'lucide-react';
 import { FormEvent, KeyboardEvent, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { fadeIn, flowingBorder, gradientFill } from '../../styles/animations';
 import { Spinner } from '../common/Button';
 
 const Form = styled.form`
@@ -11,15 +12,16 @@ const Form = styled.form`
   padding: ${({ theme }) => theme.space.sm};
   padding-left: ${({ theme }) => theme.space.lg};
   background: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  border: 1.5px solid transparent;
   border-radius: ${({ theme }) => theme.radii.xl};
   box-shadow: ${({ theme }) => theme.shadows.md};
-  transition: border-color ${({ theme }) => theme.transitions.fast}, box-shadow ${({ theme }) => theme.transitions.fast};
+  transition: box-shadow ${({ theme }) => theme.transitions.fast};
+  ${flowingBorder('1.5px')}
 
   &:focus-within {
-    border-color: ${({ theme }) => theme.colors.primary};
     box-shadow: 0 0 0 4px ${({ theme }) => theme.colors.focusRing}, ${({ theme }) => theme.shadows.md};
   }
+  &:focus-within::before { opacity: 1; }
 `;
 
 const TextArea = styled.textarea`
@@ -45,12 +47,30 @@ const Send = styled.button`
   border: none;
   display: grid;
   place-items: center;
-  background: ${({ theme }) => theme.colors.primary};
-  color: ${({ theme }) => theme.colors.onPrimary};
-  transition: background ${({ theme }) => theme.transitions.fast}, transform ${({ theme }) => theme.transitions.fast}, opacity ${({ theme }) => theme.transitions.fast};
+  ${gradientFill}
 
-  &:hover:not(:disabled) { background: ${({ theme }) => theme.colors.primaryHover}; transform: translateY(-1px); }
+  &:hover:not(:disabled) { transform: translateY(-1px); }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
+`;
+
+const Clear = styled.button`
+  flex-shrink: 0;
+  align-self: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: ${({ theme }) => theme.colors.textSubtle};
+  animation: ${fadeIn} 150ms ease both;
+  transition: background ${({ theme }) => theme.transitions.fast}, color ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.text};
+  }
 `;
 
 const Hint = styled.p`
@@ -91,7 +111,19 @@ export function PromptInput({ value, onChange, onSubmit, disabled, placeholder }
 
   const canSend = !disabled && value.trim().length > 0;
 
+  const canClear = !disabled && value.length > 0;
+
+  const clear = () => {
+    onChange('');
+    ref.current?.focus();
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape' && canClear) {
+      e.preventDefault();
+      clear();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (canSend) onSubmit();
@@ -116,12 +148,17 @@ export function PromptInput({ value, onChange, onSubmit, disabled, placeholder }
           disabled={disabled}
           aria-label="Prompt"
         />
+        {canClear && (
+          <Clear type="button" onClick={clear} aria-label="Clear prompt" title="Clear (Esc)">
+            <X size={16} />
+          </Clear>
+        )}
         <Send type="submit" disabled={!canSend} aria-label="Send message">
           {disabled ? <Spinner $size={16} /> : <ArrowUp size={18} />}
         </Send>
       </Form>
       <Hint>
-        <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
+        <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line · <kbd>Esc</kbd> to clear
       </Hint>
     </div>
   );

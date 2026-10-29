@@ -1,5 +1,5 @@
 import styled, { css } from 'styled-components';
-import { spin } from '../../styles/animations';
+import { gradientFill, spin } from '../../styles/animations';
 
 type Variant = 'primary' | 'ghost' | 'subtle' | 'danger';
 
@@ -42,11 +42,7 @@ export const Button = styled.button<{ $variant?: Variant; $block?: boolean; $siz
           &:hover:not(:disabled) { border-color: ${theme.colors.danger}; }
         `;
       default:
-        return css`
-          background: ${theme.colors.primary};
-          color: ${theme.colors.onPrimary};
-          &:hover:not(:disabled) { background: ${theme.colors.primaryHover}; }
-        `;
+        return gradientFill;
     }
   }}
 `;

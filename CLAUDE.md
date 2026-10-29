@@ -1,4 +1,4 @@
-# CLAUDE.md — AI Chat (layered TypeScript monorepo)
+# CLAUDE.md — Anton AI (layered TypeScript monorepo)
 
 Guidance for Claude Code sessions working in this repository. Read this before editing.
 
@@ -73,11 +73,14 @@ Rules:
 ## Frontend conventions
 
 - **Styling: `styled-components` only.** No CSS/SCSS files, no Tailwind, no inline `style` except for third-party props (e.g. SyntaxHighlighter `customStyle`).
-- Theme tokens in `src/styles/theme.ts` (`darkTheme`, `lightTheme`); typed via `styles/styled.d.ts` (`DefaultTheme extends AppTheme`). Read every color/spacing/radius from `theme` — no hard-coded hex inside components.
-- Global styles only in `styles/GlobalStyle.ts`; keyframes/mixins only in `styles/animations.ts`; media queries via `media.mobile`.
+- **Palettes** live in `src/styles/palettes.ts` (`jarvis` default, `classic`, `matrix`, `cyberpunk`). Each palette MUST define both `dark` and `light` variants (`colors` + `shadows`). The active palette is chosen by the operator via `VITE_THEME_PALETTE` in `frontend/.env`; users can only toggle dark/light (no palette picker in the UI). To add one: add an entry to `PALETTES`, then list the id in `frontend/.env.example`.
+- Theme tokens in `src/styles/theme.ts`; `buildTheme(paletteId, mode)` merges shared tokens (spacing, radii, fonts, layout) with the palette variant. Typed via `styles/styled.d.ts` (`DefaultTheme extends AppTheme`). Read every color/spacing/radius/shadow from `theme` — no hard-coded hex inside components (palette files are the only place hex values live). Use `colors.onPrimary` for content on primary/gradient fills, `colors.panel` for HUD/sidebar containers, `shadows.glow` for active-state glow (`none` in palettes without glow).
+- **Only `src/config/env.ts` may read `import.meta.env`** (exports `appEnv`: `appName`, `apiBaseUrl`, `themePalette`). Declare new `VITE_*` vars in `src/vite-env.d.ts` and `frontend/.env.example`.
+- Sidebar is collapsible on desktop (icon rail, `layout.sidebarCollapsedWidth`; toggle button or Ctrl/Cmd+B; persisted via `storage.getSidebarCollapsed`). On mobile it remains a drawer — gate collapsed-only styles behind `media.desktop`.
+- Global styles only in `styles/GlobalStyle.ts`; keyframes/mixins only in `styles/animations.ts`; media queries via `media.mobile` / `media.desktop`.
 - Use **transient props** (`$active`, `$isUser`) for styled-only props so they don't hit the DOM.
 - `AppThemeProvider` (ThemeModeContext) wraps `ThemeProvider` + `GlobalStyle`; toggle with `useThemeMode()`.
-- HTTP only through `src/api/*Api.ts` using the shared `http` axios instance (auth header interceptor; 401 → `aichat:unauthorized` event → logout). Never call `fetch`/`axios` from components.
+- HTTP only through `src/api/*Api.ts` using the shared `http` axios instance (auth header interceptor; 401 → `antonai:unauthorized` event → logout). Never call `fetch`/`axios` from components.
 - localStorage only via `src/utils/storage.ts`.
 - State/side-effects in hooks (`useChat`), components stay presentational. Errors → `toNormalisedError()` → `<ErrorBanner/>`.
 - Markdown via `MarkdownRenderer` (react-markdown + remark-gfm); fenced code renders `CodeBlock` (Prism + "Copy code"); every assistant bubble has "Copy response".

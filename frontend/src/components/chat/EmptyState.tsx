@@ -1,5 +1,6 @@
 import { Code2, Lightbulb, PenLine, Sparkles } from 'lucide-react';
 import styled from 'styled-components';
+import { appEnv } from '../../config/env';
 import { messageEnter } from '../../styles/animations';
 
 const Wrap = styled.div`
@@ -18,9 +19,10 @@ const Logo = styled.div`
   border-radius: ${({ theme }) => theme.radii.lg};
   display: grid;
   place-items: center;
-  color: #fff;
+  color: ${({ theme }) => theme.colors.onPrimary};
   background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary}, ${({ theme }) => theme.colors.accent});
   box-shadow: ${({ theme }) => theme.shadows.lg};
+  ${({ theme }) => theme.shadows.glow !== 'none' && `box-shadow: ${theme.shadows.lg}, ${theme.shadows.glow};`}
 `;
 
 const Title = styled.h1`
@@ -70,7 +72,7 @@ export function EmptyState({ providerLabel, onPick }: { providerLabel: string; o
       <Logo>
         <Sparkles size={26} />
       </Logo>
-      <Title>How can I help today?</Title>
+      <Title>How can {appEnv.appName} help today?</Title>
       <Sub>You're chatting with {providerLabel}. Switch providers anytime from the sidebar.</Sub>
       <Grid>
         {SUGGESTIONS.map(({ icon: Icon, text }) => (

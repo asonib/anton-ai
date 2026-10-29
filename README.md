@@ -1,12 +1,12 @@
-# AI Chat — Enterprise Layered Full-Stack Template
+# Anton AI — Enterprise Layered Full-Stack Template
 
-Multi-provider AI chat application written in TypeScript end-to-end.
+Anton AI is a multi-provider AI chat application written in TypeScript end-to-end.
 
 | Layer | Tech |
 | --- | --- |
 | API | Node.js · Express 4 · TypeScript (strict) · Prisma 6 · MySQL 8 · JWT (`jsonwebtoken` + `bcrypt`) · Zod |
 | LLM | LangChain (`@langchain/core` prompt templates + chat models) behind a **Strategy + Factory** layer — Ollama (default), OpenAI, Anthropic Claude, Google Gemini |
-| Web | React 18 · Vite 5 · `styled-components` 6 (ThemeProvider, dark/light) · `react-markdown` + GFM + Prism highlighting · Lucide icons |
+| Web | React 18 · Vite 5 · `styled-components` 6 (env-selected colour palette, each with dark/light) · `react-markdown` + GFM + Prism highlighting · Lucide icons |
 | Infra | `docker-compose.yml` (MySQL 8 + optional Ollama) · root runner with `concurrently` |
 
 ## Quick start
@@ -22,7 +22,7 @@ npm run dev            # API on :4000 + Web on :5173, one terminal
 Open http://localhost:5173, register an account and start chatting.
 
 > No Docker? Point `DATABASE_URL` in `backend/.env` to any MySQL 8 server and run `npm run setup -- --skip-docker`.
-> No local Ollama? `npm run ollama:up` starts it in Docker, then `docker exec -it ai-chat-ollama ollama pull llama3.2`.
+> No local Ollama? `npm run ollama:up` starts it in Docker, then `docker exec -it anton-ai-ollama ollama pull llama3.2`.
 
 ### Enabling cloud providers
 
@@ -36,6 +36,18 @@ DEFAULT_LLM_PROVIDER=ollama   # or openai | anthropic | gemini
 ```
 
 Unconfigured providers appear disabled in the sidebar dropdown. Model names are configurable (`*_MODEL`).
+
+### Theme palette
+
+The colour palette is set by the operator in `frontend/.env` — users cannot change it, they can only toggle dark/light mode:
+
+```dotenv
+VITE_THEME_PALETTE=jarvis   # jarvis (default, holographic HUD) | classic (original violet) | matrix (green terminal) | cyberpunk (neon magenta)
+```
+
+Every palette ships both a dark and a light variant (`frontend/src/styles/palettes.ts`). Restart `npm run dev` (or rebuild) after changing it.
+
+The left sidebar can be collapsed to an icon rail on desktop (button in the sidebar header, or `Ctrl/Cmd + B`); the choice is remembered per browser.
 
 ## Scripts (root)
 
@@ -103,7 +115,7 @@ curl -s localhost:4000/api/v1/chats/prompt -H "authorization: Bearer $TOKEN" \
 │   ├── hooks/                   useChat, useCopyToClipboard, useAutoScroll
 │   ├── components/{common,chat,markdown}
 │   ├── pages/                   AuthPage, ChatPage
-│   └── styles/                  theme tokens, GlobalStyle, keyframes
+│   └── styles/                  palettes (dark+light each), theme tokens, GlobalStyle, keyframes
 ├── docker-compose.yml
 ├── scripts/setup.mjs
 ├── CLAUDE.md                    agent guide for this repo

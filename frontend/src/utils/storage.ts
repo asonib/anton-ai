@@ -1,9 +1,10 @@
 import type { User } from '../api/types';
 
-const TOKEN_KEY = 'aichat.token';
-const USER_KEY = 'aichat.user';
-const THEME_KEY = 'aichat.theme';
-const PROVIDER_KEY = 'aichat.provider';
+const TOKEN_KEY = 'antonai.token';
+const USER_KEY = 'antonai.user';
+const THEME_KEY = 'antonai.theme';
+const PROVIDER_KEY = 'antonai.provider';
+const SIDEBAR_COLLAPSED_KEY = 'antonai.sidebarCollapsed';
 
 const safe = <T>(fn: () => T, fallback: T): T => {
   try {
@@ -33,4 +34,7 @@ export const storage = {
   setTheme: (mode: string) => safe(() => localStorage.setItem(THEME_KEY, mode), undefined),
   getProvider: () => safe(() => localStorage.getItem(PROVIDER_KEY), null),
   setProvider: (p: string) => safe(() => localStorage.setItem(PROVIDER_KEY, p), undefined),
+  getSidebarCollapsed: () => safe(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1', false),
+  setSidebarCollapsed: (collapsed: boolean) =>
+    safe(() => localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0'), undefined),
 };
