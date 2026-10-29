@@ -84,6 +84,7 @@ Rules:
 - localStorage only via `src/utils/storage.ts`.
 - State/side-effects in hooks (`useChat`), components stay presentational. Errors → `toNormalisedError()` → `<ErrorBanner/>`.
 - Attachments: `AttachMenu` (paperclip, left of the textarea, upward menu Image/Document/Code) + `AttachmentTray` in `PromptInput`; state in `useAttachments`; rendered in bubbles by `MessageAttachments`. Stored files are fetched as blobs via `chatApi.getAttachmentBlob` (`useAttachmentUrl`) because `<img src>` can't carry the JWT. Allowed types/limits mirror the backend in `src/config/attachments.ts`.
+- Voice input: `useSpeechToText(draft, setDraft)` (Web Speech API, owned by `ChatPage`) drives the mic button between Clear and Send in `PromptInput` (Ctrl/Cmd+Shift+M). Speech is appended to existing text; typing, sending or Esc cancels dictation. Needs Chromium/Safari and a secure context (https or localhost) — over plain-http LAN URLs the button is disabled.
 - Markdown via `MarkdownRenderer` (react-markdown + remark-gfm); fenced code renders `CodeBlock` (Prism + "Copy code"); every assistant bubble has "Copy response".
 
 ## Gotchas

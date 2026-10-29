@@ -10,6 +10,7 @@ import { ErrorBanner } from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
 import { useAttachments } from '../hooks/useAttachments';
 import { useChat } from '../hooks/useChat';
+import { useSpeechToText } from '../hooks/useSpeechToText';
 import { appEnv } from '../config/env';
 import { fadeIn } from '../styles/animations';
 import { media } from '../styles/theme';
@@ -69,6 +70,7 @@ export function ChatPage() {
   const chat = useChat();
   const attachments = useAttachments();
   const [draft, setDraft] = useState('');
+  const speech = useSpeechToText(draft, setDraft);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(storage.getSidebarCollapsed);
   const toggleSidebarCollapsed = useCallback(() => setSidebarCollapsed((c) => !c), []);
@@ -76,6 +78,33 @@ export function ChatPage() {
   useEffect(() => {
     storage.setSidebarCollapsed(sidebarCollapsed);
   }, [sidebarCollapsed]);
+
+  // Stop dictation while a prompt is in flight.
+  useEffect(() => {
+    if (chat.sending) speech.cancel();
+  }, [chat.sending, speech.cancel]);
+
+  // Ctrl/Cmd + Shift + M toggles voice input.
+  useEffect(() => {
+    if (!speech.supported) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        speech.toggle();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [speech.supported, speech.toggle]);
+
+  // Typing by hand takes over from dictation.
+  const onDraftChange = useCallback(
+    (v: string) => {
+      if (speech.listening) speech.cancel();
+      setDraft(v);
+    },
+    [speech.listening, speech.cancel],
+  );
 
   // Ctrl/Cmd + B toggles the desktop sidebar.
   useEffect(() => {
@@ -96,6 +125,7 @@ export function ChatPage() {
     const value = text.trim();
     const files = attachments.items;
     if (!value && files.length === 0) return;
+    speech.cancel(); // drop any late dictation results so they can't refill the cleared box
     setDraft('');
     attachments.detach();
     attachments.dismissError();
@@ -157,15 +187,17 @@ export function ChatPage() {
         <Composer>
           {chat.error && <ErrorBanner message={chat.error.message} details={chat.error.details} onDismiss={chat.dismissError} />}
           {attachments.error && <ErrorBanner message={attachments.error} onDismiss={attachments.dismissError} />}
+          {speech.error && <ErrorBanner message={speech.error} onDismiss={speech.dismissError} />}
           <PromptInput
             value={draft}
-            onChange={setDraft}
+            onChange={onDraftChange}
             onSubmit={() => void submit()}
             disabled={chat.sending}
             placeholder={`Message ${providerLabel}…`}
             attachments={attachments.items}
             onAddFiles={attachments.add}
             onRemoveAttachment={attachments.remove}
+            dictation={{ supported: speech.supported, listening: speech.listening, onToggle: speech.toggle }}
           />
         </Composer>
       </Main>

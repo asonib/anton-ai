@@ -1,8 +1,8 @@
-import { ArrowUp, UploadCloud, X } from 'lucide-react';
+import { ArrowUp, Mic, Square, UploadCloud, X } from 'lucide-react';
 import { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import type { PendingAttachment } from '../../hooks/useAttachments';
-import { fadeIn, flowingBorder, gradientFill } from '../../styles/animations';
+import { fadeIn, flowingBorder, gradientFill, gradientRing, pulseRing } from '../../styles/animations';
 import { Spinner } from '../common/Button';
 import { AttachMenu } from './AttachMenu';
 import { AttachmentTray } from './Attachments';
@@ -104,6 +104,40 @@ const Clear = styled.button`
   }
 `;
 
+const MicButton = styled.button<{ $listening: boolean }>`
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid transparent;
+  background: ${({ theme, $listening }) => ($listening ? theme.colors.primarySoft : 'transparent')};
+  ${({ $listening }) => gradientRing('2px', $listening)}
+  color: ${({ theme, $listening }) => ($listening ? theme.colors.primary : theme.colors.textMuted)};
+  transition: background ${({ theme }) => theme.transitions.fast}, color ${({ theme }) => theme.transitions.fast},
+    border-color ${({ theme }) => theme.transitions.fast};
+
+  ${({ $listening, theme }) =>
+    $listening &&
+    css`
+      animation: ${pulseRing(theme.colors.glow)} 1.6s ease-out infinite;
+      svg { fill: currentColor; }
+    `}
+
+  &:hover:not(:disabled) {
+    background: ${({ theme }) => theme.colors.primarySoft};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.focusRing};
+  }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &:disabled::before { animation-play-state: paused; }
+`;
+
 const Hint = styled.p`
   margin: ${({ theme }) => theme.space.sm} 0 0;
   text-align: center;
@@ -126,6 +160,8 @@ interface Props {
   attachments: PendingAttachment[];
   onAddFiles: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
+  /** Browser voice dictation (see `useSpeechToText`). */
+  dictation: { supported: boolean; listening: boolean; onToggle: () => void };
 }
 
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
@@ -143,6 +179,7 @@ export function PromptInput({
   attachments,
   onAddFiles,
   onRemoveAttachment,
+  dictation,
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -239,7 +276,7 @@ export function PromptInput({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={placeholder ?? 'Message the assistant…'}
+            placeholder={dictation.listening ? 'Listening… speak now' : placeholder ?? 'Message the assistant…'}
             disabled={disabled}
             aria-label="Prompt"
           />
@@ -248,13 +285,33 @@ export function PromptInput({
               <X size={16} />
             </Clear>
           )}
+          <MicButton
+            type="button"
+            $listening={dictation.listening}
+            disabled={disabled || !dictation.supported}
+            onClick={() => {
+              dictation.onToggle();
+              ref.current?.focus();
+            }}
+            aria-pressed={dictation.listening}
+            aria-label={dictation.listening ? 'Stop voice input' : 'Start voice input'}
+            title={
+              !dictation.supported
+                ? 'Voice input needs Chrome, Edge or Safari over https/localhost'
+                : dictation.listening
+                  ? 'Stop voice input (Ctrl+Shift+M)'
+                  : 'Voice input (Ctrl+Shift+M)'
+            }
+          >
+            {dictation.listening ? <Square size={14} /> : <Mic size={17} />}
+          </MicButton>
           <Send type="submit" disabled={!canSend} aria-label="Send message">
             {disabled ? <Spinner $size={16} /> : <ArrowUp size={18} />}
           </Send>
         </Row>
       </Form>
       <Hint>
-        <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line · <kbd>Esc</kbd> to clear · drop or paste files to attach
+        <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line · <kbd>Esc</kbd> to clear · drop or paste files to attach · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> voice
       </Hint>
     </div>
   );
