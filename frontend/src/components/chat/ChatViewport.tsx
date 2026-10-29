@@ -2,11 +2,22 @@ import { ReactNode, useRef } from 'react';
 import styled from 'styled-components';
 import type { UiMessage } from '../../hooks/useChat';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
+import { AuroraBackdrop } from '../common/AuroraBackdrop';
 import { MessageBubble } from './MessageBubble';
 import { MessagesSkeleton } from './SkeletonLoader';
 import { TypingIndicator } from './TypingIndicator';
 
+const Stage = styled.div`
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
 const Scroll = styled.div`
+  position: relative;
+  z-index: 1;
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -35,23 +46,27 @@ interface Props {
 export function ChatViewport({ messages, loading, sending, providerLabel, empty }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useAutoScroll(ref, [messages.length, sending, loading]);
+  const isEmpty = !loading && messages.length === 0 && !sending;
 
   return (
-    <Scroll ref={ref}>
-      <Inner>
-        {loading ? (
-          <MessagesSkeleton />
-        ) : messages.length === 0 && !sending ? (
-          empty
-        ) : (
-          <>
-            {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
-            ))}
-            {sending && <TypingIndicator label={`${providerLabel} is thinking`} />}
-          </>
-        )}
-      </Inner>
-    </Scroll>
+    <Stage>
+      <AuroraBackdrop $visible={isEmpty} />
+      <Scroll ref={ref}>
+        <Inner>
+          {loading ? (
+            <MessagesSkeleton />
+          ) : isEmpty ? (
+            empty
+          ) : (
+            <>
+              {messages.map((m) => (
+                <MessageBubble key={m.id} message={m} />
+              ))}
+              {sending && <TypingIndicator label={`${providerLabel} is thinking`} />}
+            </>
+          )}
+        </Inner>
+      </Scroll>
+    </Stage>
   );
 }

@@ -10,6 +10,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     server: {
+      // Listen on all interfaces so the app is reachable from other devices on the LAN.
+      host: true,
       port: 5173,
       strictPort: true,
       proxy: { '/api': { target: apiTarget, changeOrigin: true } },
