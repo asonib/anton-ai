@@ -156,7 +156,7 @@ const ModelHint = styled.div`
   text-overflow: ellipsis;
 `;
 
-const ORDER: LLMProvider[] = ['ollama', 'anthropic', 'gemini', 'openai'];
+const ORDER: LLMProvider[] = ['ollama', 'anthropic', 'gemini', 'openai', 'grok'];
 
 interface Props {
   providers: ProviderInfo[];

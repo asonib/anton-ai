@@ -10,10 +10,11 @@ const FALLBACK_PROVIDERS: ProviderInfo[] = [
   { id: 'anthropic', label: 'Anthropic (Claude)', model: '', configured: true, isDefault: false },
   { id: 'gemini', label: 'Google Gemini', model: '', configured: true, isDefault: false },
   { id: 'openai', label: 'OpenAI (ChatGPT)', model: '', configured: true, isDefault: false },
+  { id: 'grok', label: 'xAI Grok', model: '', configured: true, isDefault: false },
 ];
 
 const isProvider = (v: string | null): v is LLMProvider =>
-  v === 'ollama' || v === 'openai' || v === 'anthropic' || v === 'gemini';
+  v === 'ollama' || v === 'openai' || v === 'anthropic' || v === 'gemini' || v === 'grok';
 
 export interface UiMessage extends ChatMessage {
   pending?: boolean;

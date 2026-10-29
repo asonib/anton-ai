@@ -75,7 +75,7 @@ console.log(`\n${c.green('✔ Setup complete.')}
 
   Next steps:
     1. (Default provider) install Ollama and run:  ollama pull llama3.2
-       — or add OPENAI / ANTHROPIC / GEMINI keys to backend/.env
+       — or add OPENAI / ANTHROPIC / GEMINI / XAI keys to backend/.env
     2. npm run dev
     3. open http://localhost:5173
 `);

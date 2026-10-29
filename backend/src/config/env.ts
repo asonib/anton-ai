@@ -14,7 +14,7 @@ const optionalString = z
   .optional()
   .transform((v) => (v && v.trim().length > 0 ? v.trim() : undefined));
 
-export const LLM_PROVIDERS = ['ollama', 'openai', 'anthropic', 'gemini'] as const;
+export const LLM_PROVIDERS = ['ollama', 'openai', 'anthropic', 'gemini', 'grok'] as const;
 export type LLMProvider = (typeof LLM_PROVIDERS)[number];
 
 export const isLLMProvider = (value: unknown): value is LLMProvider =>
@@ -65,6 +65,11 @@ const envSchema = z
 
     GEMINI_API_KEY: optionalString,
     GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+
+    /** xAI Grok — OpenAI-compatible API. */
+    XAI_API_KEY: optionalString,
+    XAI_MODEL: z.string().default('grok-4'),
+    XAI_BASE_URL: z.string().url().default('https://api.x.ai/v1'),
   })
   .superRefine((cfg, ctx) => {
     if (cfg.NODE_ENV === 'production' && (cfg.JWT_SECRET === DEV_JWT_SECRET || cfg.JWT_SECRET.length < 32)) {

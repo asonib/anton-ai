@@ -5,7 +5,7 @@ Anton AI is a multi-provider AI chat application written in TypeScript end-to-en
 | Layer | Tech |
 | --- | --- |
 | API | Node.js · Express 4 · TypeScript (strict) · Prisma 6 · MySQL 8 · JWT (`jsonwebtoken` + `bcrypt`) · Zod |
-| LLM | LangChain (`@langchain/core` prompt templates + chat models) behind a **Strategy + Factory** layer — Ollama (default), OpenAI, Anthropic Claude, Google Gemini |
+| LLM | LangChain (`@langchain/core` prompt templates + chat models) behind a **Strategy + Factory** layer — Ollama (default), OpenAI, Anthropic Claude, Google Gemini, xAI Grok |
 | Web | React 18 · Vite 5 · `styled-components` 6 (env-selected colour palette, each with dark/light) · `react-markdown` + GFM + Prism highlighting · Lucide icons |
 | Infra | `docker-compose.yml` (MySQL 8 + optional Ollama) · root runner with `concurrently` |
 
@@ -32,7 +32,8 @@ Edit `backend/.env`:
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 GEMINI_API_KEY=AIza...
-DEFAULT_LLM_PROVIDER=ollama   # or openai | anthropic | gemini
+XAI_API_KEY=xai-...
+DEFAULT_LLM_PROVIDER=ollama   # or openai | anthropic | gemini | grok
 ```
 
 Unconfigured providers appear disabled in the sidebar dropdown. Model names are configurable (`*_MODEL`).
