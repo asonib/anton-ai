@@ -1,0 +1,27 @@
+{
+  "name": "ai-chat-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack multi-LLM chat (Express + Prisma + MySQL + React + styled-components) with a Strategy-pattern LLM layer",
+  "engines": { "node": ">=18.18" },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "concurrently -k -n API,WEB -c cyan,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "start": "npm --prefix backend run start",
+    "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
+    "db:up": "docker compose up -d --wait mysql",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f mysql",
+    "db:migrate": "npm --prefix backend run prisma:migrate",
+    "db:deploy": "npm --prefix backend run prisma:deploy",
+    "db:reset": "npm --prefix backend run prisma:reset",
+    "db:studio": "npm --prefix backend run prisma:studio",
+    "ollama:up": "docker compose --profile ollama up -d ollama"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
