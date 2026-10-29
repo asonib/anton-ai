@@ -58,6 +58,14 @@ export const providerSettings: Readonly<Record<LLMProvider, ProviderSettings>> =
     apiKey: env.GEMINI_API_KEY,
     requiredEnv: 'GEMINI_API_KEY',
   },
+  grok: {
+    provider: 'grok',
+    label: 'xAI Grok',
+    model: env.XAI_MODEL,
+    apiKey: env.XAI_API_KEY,
+    baseUrl: env.XAI_BASE_URL,
+    requiredEnv: 'XAI_API_KEY',
+  },
 });
 
 export const defaultProvider: LLMProvider = env.DEFAULT_LLM_PROVIDER;

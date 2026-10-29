@@ -1,5 +1,5 @@
 /** Mirrors the backend DTOs + standard response envelopes. */
-export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini';
+export type LLMProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini' | 'grok';
 export type MessageRole = 'user' | 'assistant';
 export type AttachmentKind = 'image' | 'document' | 'code';
 

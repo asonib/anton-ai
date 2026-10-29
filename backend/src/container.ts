@@ -20,6 +20,7 @@ import { TokenService } from './services/token.service';
 import {
   AnthropicStrategy,
   GeminiStrategy,
+  GrokStrategy,
   LLMStrategyFactory,
   OllamaStrategy,
   OpenAIStrategy,
@@ -38,7 +39,7 @@ export function buildContainer() {
 
   // Strategies (LLM providers)
   const llmFactory = new LLMStrategyFactory(
-    [new OllamaStrategy(), new OpenAIStrategy(), new AnthropicStrategy(), new GeminiStrategy()],
+    [new OllamaStrategy(), new OpenAIStrategy(), new AnthropicStrategy(), new GeminiStrategy(), new GrokStrategy()],
     defaultProvider,
   );
 

@@ -24,7 +24,7 @@ Always run `npm run typecheck` after changes. Both apps use `strict` TS with `no
 - Template: `.env.example` (root). `setup` copies it to `.env` (read by docker compose) and `backend/.env` (read by the API and Prisma CLI). Frontend: `frontend/.env` from `frontend/.env.example`.
 - **Only `backend/src/config/env.ts` may read `process.env`.** It validates with zod and exits on bad config. Add new variables there (with defaults) and to `.env.example`.
 - Provider settings live in `backend/src/config/llm.config.ts` (`providerSettings`, `llmDefaults`).
-- `DEFAULT_LLM_PROVIDER` ∈ `ollama | openai | anthropic | gemini` (default `ollama`).
+- `DEFAULT_LLM_PROVIDER` ∈ `ollama | openai | anthropic | gemini | grok` (default `ollama`).
 
 ## Backend architecture — strict boundaries
 
@@ -59,7 +59,7 @@ Rules:
 
 - Contract: `ILLMStrategy.generateResponse(prompt, history?, options?, images?) → Promise<LLMResponse>` (request/response, **no SSE/streaming**). `images` (`LLMImage[]`) and `Message.images` become LangChain `image_url` data-URL parts.
 - `BaseLangChainStrategy` implements the template: `ChatPromptTemplate(system → MessagesPlaceholder('history') → MessagesPlaceholder('input'))`, abort-timeout, content/usage extraction, and error normalisation to `LLMProviderException`.
-- Concrete strategies (`OllamaStrategy`, `OpenAIStrategy`, `AnthropicStrategy`, `GeminiStrategy`) only implement `createModel()` (and `isConfigured()` when no API key is needed).
+- Concrete strategies (`OllamaStrategy`, `OpenAIStrategy`, `AnthropicStrategy`, `GeminiStrategy`, `GrokStrategy` — xAI via `ChatOpenAI` + `XAI_BASE_URL`) only implement `createModel()` (and `isConfigured()` when no API key is needed).
 - `LLMStrategyFactory.resolve(provider?)` → request `provider` field, else `DEFAULT_LLM_PROVIDER`. Unknown → `ValidationException`; unconfigured → `LLMProviderException(LLM_PROVIDER_NOT_CONFIGURED)`.
 - Conversation memory: `LLMService.buildMemory()` windows the last `CHAT_HISTORY_WINDOW` messages from the DB; `composeUserContent()` folds document/code attachment text into user turns as `<attachment>` blocks, and the last `CHAT_HISTORY_IMAGE_LIMIT` history images are re-sent.
 

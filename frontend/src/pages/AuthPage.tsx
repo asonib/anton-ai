@@ -228,7 +228,7 @@ export function AuthPage({ initialMode = 'login' }: { initialMode?: Mode }) {
           <Sparkles size={22} />
         </Logo>
         <Title>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Title>
-        <Subtitle>{appEnv.appName} — chat with Ollama, Claude, Gemini and ChatGPT from one place.</Subtitle>
+        <Subtitle>{appEnv.appName} — chat with Ollama, Claude, Gemini, ChatGPT and Grok from one place.</Subtitle>
 
         <Tabs role="tablist">
           <Tab type="button" role="tab" aria-selected={mode === 'login'} $active={mode === 'login'} onClick={() => switchMode('login')}>

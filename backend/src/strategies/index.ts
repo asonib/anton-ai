@@ -5,4 +5,5 @@ export * from './OllamaStrategy';
 export * from './OpenAIStrategy';
 export * from './AnthropicStrategy';
 export * from './GeminiStrategy';
+export * from './GrokStrategy';
 export * from './LLMStrategyFactory';
