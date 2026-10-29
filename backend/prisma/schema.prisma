@@ -1,0 +1,57 @@
+// Prisma schema — MySQL 8. Every Conversation and Message is owned by a User
+// (user_id) so all data access can be strictly scoped to the JWT subject.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+model User {
+  id            String         @id @default(uuid()) @db.Char(36)
+  email         String         @unique @db.VarChar(255)
+  passwordHash  String         @map("password_hash") @db.VarChar(255)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  conversations Conversation[]
+  messages      Message[]
+
+  @@map("users")
+}
+
+model Conversation {
+  id        String    @id @default(uuid()) @db.Char(36)
+  userId    String    @map("user_id") @db.Char(36)
+  title     String    @db.VarChar(255)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([userId, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Char(36)
+  conversationId String       @map("conversation_id") @db.Char(36)
+  userId         String       @map("user_id") @db.Char(36)
+  role           MessageRole
+  content        String       @db.LongText
+  provider       String?      @db.VarChar(32)
+  modelName      String?      @map("model_name") @db.VarChar(128)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([userId])
+  @@map("messages")
+}
