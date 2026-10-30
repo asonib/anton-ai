@@ -187,7 +187,9 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
     logger.warn('LLM provider call failed', { provider: this.provider, model: options.model, status, netCode, message });
 
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError' || /aborted|timed? ?out/i.test(message)) {
-      return new LLMProviderException(this.provider, `Request timed out after ${options.timeoutMs} ms`, 'LLM_PROVIDER_TIMEOUT', error);
+      return new LLMProviderException(this.provider, options.timeoutMs > 0
+          ? `Request timed out after ${options.timeoutMs} ms (LLM_TIMEOUT_MS in backend/.env — set it to 0 for no limit)`
+          : 'Request was aborted before the provider answered', 'LLM_PROVIDER_TIMEOUT', error);
     }
     if (netCode === 'ECONNREFUSED' || netCode === 'ENOTFOUND' || /fetch failed|ECONNREFUSED/i.test(message)) {
       return new LLMProviderException(this.provider, `Provider endpoint is unreachable (${this.settings.baseUrl ?? 'default endpoint'})`, 'LLM_PROVIDER_UNAVAILABLE', error);

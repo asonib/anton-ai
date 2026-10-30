@@ -36,6 +36,11 @@ async function bootstrap(): Promise<void> {
       .map((p) => `${p.id}${p.isDefault ? '*' : ''}=${p.configured ? p.model : 'not-configured'}`)
       .join(', ');
     logger.info(`LLM providers: ${providers}`);
+    logger.info(
+      env.LLM_TIMEOUT_MS === 0
+        ? 'LLM time limit: none (LLM_TIMEOUT_MS=0)'
+        : `LLM time limit: ${env.LLM_TIMEOUT_MS} ms — set LLM_TIMEOUT_MS=0 in backend/.env to remove it`,
+    );
   });
   // LLM answers and git clones can take a while — keep sockets open longer than either timeout.
   // LLM_TIMEOUT_MS = 0 means unlimited, so Node's own request timeout is switched off too.
