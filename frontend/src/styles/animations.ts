@@ -32,6 +32,12 @@ export const pulseRing = (color: string) => keyframes`
   100% { box-shadow: 0 0 0 0 transparent; }
 `;
 
+/** Blinking text caret (typewriter headline). */
+export const caretBlink = keyframes`
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+`;
+
 export const spin = keyframes`
   to { transform: rotate(360deg); }
 `;
@@ -85,6 +91,35 @@ export const gradientFill = css`
 export const borderFlow = keyframes`
   from { background-position: 100% 50%; }
   to   { background-position: 0% 50%; }
+`;
+
+/**
+ * Flowing gradient text fill (primary → accent → primaryHover), sliding left → right and looping seamlessly.
+ * Works on inline elements; wrapped lines each get the full gradient.
+ */
+export const gradientText = (duration = '6s') => css`
+  background-image: linear-gradient(
+    90deg,
+    ${({ theme }) => theme.colors.primary},
+    ${({ theme }) => theme.colors.accent},
+    ${({ theme }) => theme.colors.primaryHover},
+    ${({ theme }) => theme.colors.primary},
+    ${({ theme }) => theme.colors.accent},
+    ${({ theme }) => theme.colors.primaryHover},
+    ${({ theme }) => theme.colors.primary}
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: ${borderFlow} ${duration} linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
 
 /**

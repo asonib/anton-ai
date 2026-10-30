@@ -15,7 +15,7 @@ const resolvePalette = (raw: string | undefined): PaletteId => {
 };
 
 export const appEnv = {
-  appName: 'Anton AI',
+  appName: 'Anton',
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   /** Brand mark shown in the sidebar (served from `frontend/public/`, same file as the favicon). */
   logoUrl: `${import.meta.env.BASE_URL}favicon.svg`,

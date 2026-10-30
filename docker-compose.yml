@@ -39,6 +39,15 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    # NVIDIA GPU passthrough (needed for GPU inference and MLX-only models like x/z-image-turbo).
+    # Requires Docker Desktop (WSL2) + NVIDIA driver; remove this block on machines without an NVIDIA GPU.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
 volumes:
   mysql_data:

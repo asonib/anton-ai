@@ -1,7 +1,8 @@
 import { Code2, Lightbulb, PenLine, Sparkles } from 'lucide-react';
 import styled from 'styled-components';
 import { appEnv } from '../../config/env';
-import { messageEnter } from '../../styles/animations';
+import { useTypewriter } from '../../hooks/useTypewriter';
+import { caretBlink, gradientText, messageEnter } from '../../styles/animations';
 
 const Wrap = styled.div`
   margin: auto;
@@ -29,6 +30,28 @@ const Title = styled.h1`
   margin: 0 0 ${({ theme }) => theme.space.sm};
   font-size: ${({ theme }) => theme.fontSizes.xxl};
   letter-spacing: -0.02em;
+  line-height: 1.25;
+  /* Reserve one line so the layout doesn't jump while the text is backspaced to empty */
+  min-height: 1.25em;
+`;
+
+const Headline = styled.span`
+  ${gradientText('6s')}
+`;
+
+const Caret = styled.span`
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: -0.12em;
+  border-radius: 1px;
+  background: ${({ theme }) => theme.colors.primary};
+  animation: ${caretBlink} 1s steps(1) infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
 
 const Sub = styled.p`
@@ -66,13 +89,28 @@ const SUGGESTIONS = [
   { icon: Sparkles, text: 'Compare REST and GraphQL in a markdown table' },
 ];
 
+const HEADLINES = [
+  `How can ${appEnv.appName} help today?`,
+  'What are we building today?',
+  'Got a bug to squash?',
+  'Ask me anything.',
+  'Need a second opinion on code?',
+  "Let's brainstorm something new.",
+  'Drop a file and ask away.',
+] as const;
+
 export function EmptyState({ providerLabel, onPick }: { providerLabel: string; onPick: (text: string) => void }) {
+  const headline = useTypewriter(HEADLINES);
+
   return (
     <Wrap>
       <Logo>
         <Sparkles size={26} />
       </Logo>
-      <Title>How can {appEnv.appName} help today?</Title>
+      <Title aria-label={HEADLINES[0]}>
+        <Headline aria-hidden="true">{headline}</Headline>
+        <Caret aria-hidden="true" />
+      </Title>
       <Sub>You're chatting with {providerLabel}. Switch providers anytime from the sidebar.</Sub>
       <Grid>
         {SUGGESTIONS.map(({ icon: Icon, text }) => (

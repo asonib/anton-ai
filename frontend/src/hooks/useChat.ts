@@ -6,7 +6,7 @@ import type { DisplayAttachment, PendingAttachment } from './useAttachments';
 import { storage } from '../utils/storage';
 
 const FALLBACK_PROVIDERS: ProviderInfo[] = [
-  { id: 'ollama', label: 'Ollama (local)', model: 'llama3.2', configured: true, isDefault: true },
+  { id: 'ollama', label: 'Ollama', model: 'llama3.2', configured: true, isDefault: true },
   { id: 'anthropic', label: 'Anthropic (Claude)', model: '', configured: true, isDefault: false },
   { id: 'gemini', label: 'Google Gemini', model: '', configured: true, isDefault: false },
   { id: 'openai', label: 'OpenAI (ChatGPT)', model: '', configured: true, isDefault: false },

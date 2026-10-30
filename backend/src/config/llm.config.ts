@@ -32,7 +32,7 @@ export const llmDefaults: LLMRuntimeDefaults = Object.freeze({
 export const providerSettings: Readonly<Record<LLMProvider, ProviderSettings>> = Object.freeze({
   ollama: {
     provider: 'ollama',
-    label: 'Ollama (local)',
+    label: 'Ollama',
     model: env.OLLAMA_MODEL,
     baseUrl: env.OLLAMA_BASE_URL,
   },

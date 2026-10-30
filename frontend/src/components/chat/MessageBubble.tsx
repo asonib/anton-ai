@@ -1,13 +1,15 @@
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Square, Volume2 } from 'lucide-react';
 import { memo } from 'react';
 import styled from 'styled-components';
 import type { UiMessage } from '../../hooks/useChat';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
+import { useTextToSpeech } from '../../hooks/useTextToSpeech';
 import { messageEnter, popIn } from '../../styles/animations';
 import { formatTime } from '../../utils/format';
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
 import { MessageAttachments } from './Attachments';
 import { Avatar } from './Avatar';
+import { DownloadMenu } from './DownloadMenu';
 
 const Row = styled.div<{ $isUser: boolean }>`
   display: flex;
@@ -48,6 +50,7 @@ const AssistantBubble = styled.div`
 
 const Footer = styled.div<{ $isUser: boolean }>`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: ${({ theme }) => theme.space.sm};
   margin-top: ${({ theme }) => theme.space.xs};
@@ -66,11 +69,34 @@ const Chip = styled.span`
   letter-spacing: 0.01em;
 `;
 
-const CopyResponse = styled.button<{ $copied: boolean }>`
+const Actions = styled.div`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.space.xs};
   margin-left: auto;
+`;
+
+const SpeakResponse = styled.button<{ $speaking: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.space.xs};
+  padding: ${({ theme }) => `${theme.space.xxs} ${theme.space.sm}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ $speaking, theme }) => ($speaking ? 'transparent' : theme.colors.border)};
+  background: ${({ $speaking, theme }) => ($speaking ? theme.colors.primarySoft : 'transparent')};
+  color: ${({ $speaking, theme }) => ($speaking ? theme.colors.primary : theme.colors.textMuted)};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 500;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover { color: ${({ $speaking, theme }) => ($speaking ? theme.colors.primary : theme.colors.text)}; background: ${({ $speaking, theme }) => ($speaking ? theme.colors.primarySoft : theme.colors.surfaceHover)}; }
+  svg { animation: ${({ $speaking }) => ($speaking ? popIn : 'none')} 280ms ease; }
+`;
+
+const CopyResponse = styled.button<{ $copied: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.space.xs};
   padding: ${({ theme }) => `${theme.space.xxs} ${theme.space.sm}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ $copied, theme }) => ($copied ? 'transparent' : theme.colors.border)};
@@ -87,6 +113,7 @@ const CopyResponse = styled.button<{ $copied: boolean }>`
 function MessageBubbleImpl({ message }: { message: UiMessage }) {
   const isUser = message.role === 'user';
   const { copied, copy } = useCopyToClipboard();
+  const tts = useTextToSpeech(message.id);
 
   return (
     <Row $isUser={isUser}>
@@ -105,10 +132,25 @@ function MessageBubbleImpl({ message }: { message: UiMessage }) {
           {!isUser && message.modelName && <span>{message.modelName}</span>}
           <span>{message.pending ? 'Sending…' : formatTime(message.createdAt)}</span>
           {!isUser && (
-            <CopyResponse type="button" $copied={copied} onClick={() => void copy(message.content)} aria-label="Copy response">
-              {copied ? <Check size={13} /> : <Copy size={13} />}
-              {copied ? 'Copied!' : 'Copy response'}
-            </CopyResponse>
+            <Actions>
+              {tts.supported && message.content.trim() && (
+                <SpeakResponse
+                  type="button"
+                  $speaking={tts.speaking}
+                  onClick={() => tts.toggle(message.content)}
+                  aria-label={tts.speaking ? 'Stop reading response' : 'Read response aloud'}
+                  aria-pressed={tts.speaking}
+                >
+                  {tts.speaking ? <Square size={12} /> : <Volume2 size={13} />}
+                  {tts.speaking ? 'Stop' : 'Listen'}
+                </SpeakResponse>
+              )}
+              {message.content.trim() && <DownloadMenu content={message.content} createdAt={message.createdAt} />}
+              <CopyResponse type="button" $copied={copied} onClick={() => void copy(message.content)} aria-label="Copy response">
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                {copied ? 'Copied!' : 'Copy response'}
+              </CopyResponse>
+            </Actions>
           )}
         </Footer>
       </Column>
