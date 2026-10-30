@@ -80,6 +80,14 @@ const envSchema = z
     /** Output budget for prompts with a project attached (edits are returned as whole files). */
     PROJECT_LLM_MAX_TOKENS: z.coerce.number().int().positive().default(16_384),
 
+    /** "Top AI repos" panel — GitHub REST API (public search, no token needed). */
+    GITHUB_API_URL: z.string().url().default('https://api.github.com'),
+    /** Optional token: raises the search rate limit from 10 to 30 requests/minute. No scopes needed. */
+    GITHUB_TOKEN: optionalString,
+    /** How long GitHub search results are cached in memory (default 1 hour). */
+    AI_REPOS_CACHE_TTL_MS: z.coerce.number().int().min(60_000).default(3_600_000),
+    AI_REPOS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(10_000),
+
     OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
     OLLAMA_MODEL: z.string().default('llama3.2'),
 

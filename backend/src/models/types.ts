@@ -234,3 +234,77 @@ export interface ProjectChangesResultDTO {
   /** Changes that were skipped because the file changed on disk (retry with `force`). */
   conflicts: ProjectChangeConflictDTO[];
 }
+
+/** One card in the "Top AI repos" panel (from the GitHub search API). */
+export interface AiRepoDTO {
+  rank: number;
+  /** `owner/name` */
+  fullName: string;
+  owner: string;
+  name: string;
+  ownerAvatarUrl: string | null;
+  description: string | null;
+  /** https://github.com/owner/name */
+  url: string;
+  homepage: string | null;
+  /** null for the offline fallback snapshot. */
+  stars: number | null;
+  forks: number | null;
+  openIssues: number | null;
+  language: string | null;
+  topics: string[];
+  license: string | null;
+  pushedAt: string | null;
+}
+
+export interface AiRepoCategoryDTO {
+  id: string;
+  name: string;
+}
+
+export interface AiRepoListDTO {
+  category: string;
+  categories: AiRepoCategoryDTO[];
+  /** live = fetched now, cache = served from memory, stale = GitHub failed so older cached data is used, fallback = built-in snapshot. */
+  source: 'live' | 'cache' | 'stale' | 'fallback';
+  /** When the GitHub data was fetched (null for the fallback). */
+  fetchedAt: string | null;
+  /** Why the data is stale/fallback (rate limit, network…). */
+  notice: string | null;
+  items: AiRepoDTO[];
+}
+
+/* ------------------------------ agent activity (live progress) ------------------------------ */
+
+export type ActivityStepKey = 'prepare' | 'attachments' | 'memory' | 'project' | 'skill' | 'model' | 'changes' | 'save';
+export type ActivityStepStatus = 'active' | 'done' | 'error';
+export type ActivityRunStatus = 'running' | 'done' | 'error';
+
+export interface ActivityStepDTO {
+  key: ActivityStepKey;
+  label: string;
+  /** Short human-readable detail, e.g. "3 files · 42 KB" or "claude-sonnet-4 · Anthropic". */
+  detail: string | null;
+  status: ActivityStepStatus;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+/** Live output counters while the model is answering (fed by the provider's internal stream). */
+export interface ActivityOutputDTO {
+  chars: number;
+  words: number;
+  /** Project file the model is currently writing (inside a `<<<FILE …>>>` block), if any. */
+  currentFile: string | null;
+  filesWritten: number;
+}
+
+export interface ActivityRunDTO {
+  runId: string;
+  status: ActivityRunStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  steps: ActivityStepDTO[];
+  output: ActivityOutputDTO | null;
+  error: string | null;
+}

@@ -1,3 +1,4 @@
+import type { CallbackHandlerMethods } from '@langchain/core/callbacks/base';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
@@ -76,8 +77,11 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
           history: this.toLangChainHistory(history),
           input: [this.toHumanMessage(prompt, images)],
         },
-        // timeoutMs 0 = unlimited → no abort signal at all.
-        resolved.timeoutMs > 0 ? { signal: AbortSignal.timeout(resolved.timeoutMs) } : {},
+        {
+          // timeoutMs 0 = unlimited → no abort signal at all.
+          ...(resolved.timeoutMs > 0 ? { signal: AbortSignal.timeout(resolved.timeoutMs) } : {}),
+          ...this.progressCallbacks(options.onToken),
+        },
       );
     } catch (error) {
       throw this.normaliseError(error, resolved, images.length > 0 || history.some((m) => m.images?.length));
@@ -110,6 +114,27 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
       maxTokens: options.maxTokens ?? llmDefaults.maxTokens,
       systemPrompt: options.systemPrompt?.trim() || llmDefaults.systemPrompt,
       timeoutMs: options.timeoutMs ?? llmDefaults.timeoutMs,
+    };
+  }
+
+  /**
+   * LangChain fires `handleLLMNewToken` for every streamed chunk (all our providers stream internally),
+   * which lets the caller report live progress without changing the request/response contract.
+   */
+  protected progressCallbacks(onToken?: (chunk: string) => void): { callbacks?: CallbackHandlerMethods[] } {
+    if (!onToken) return {};
+    return {
+      callbacks: [
+        {
+          handleLLMNewToken: (token: string) => {
+            try {
+              onToken(token);
+            } catch {
+              /* progress must never break the model call */
+            }
+          },
+        },
+      ],
     };
   }
 

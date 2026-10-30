@@ -1,5 +1,6 @@
 import { http } from './httpClient';
 import type {
+  ActivityRun,
   ApiSuccess,
   ChatMessage,
   Conversation,
@@ -24,7 +25,8 @@ export const chatApi = {
     );
     return data.data;
   },
-  async sendPrompt({ files, ...fields }: PromptRequest): Promise<PromptResult> {
+  /** `onUploadProgress` (0–1) is only reported for multipart requests (files attached). */
+  async sendPrompt({ files, ...fields }: PromptRequest, onUploadProgress?: (fraction: number) => void): Promise<PromptResult> {
     if (!files?.length) {
       const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', fields, { timeout: NO_TIMEOUT });
       return data.data;
@@ -35,13 +37,24 @@ export const chatApi = {
     if (fields.provider) form.append('provider', fields.provider);
     if (fields.skill) form.append('skill', fields.skill);
     if (fields.projectId) form.append('projectId', fields.projectId);
+    if (fields.runId) form.append('runId', fields.runId);
     files.forEach((file) => form.append('files', file, file.name));
     // Explicit multipart type stops axios from JSON-serialising the FormData (the instance default
     // is application/json); the browser then fills in the boundary.
     const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: NO_TIMEOUT,
+      onUploadProgress: onUploadProgress
+        ? (e) => {
+            if (e.total) onUploadProgress(Math.min(1, e.loaded / e.total));
+          }
+        : undefined,
     });
+    return data.data;
+  },
+  /** Live progress of an in-flight prompt; null until the server has started on it. */
+  async getActivity(runId: string): Promise<ActivityRun | null> {
+    const { data } = await http.get<ApiSuccess<ActivityRun | null>>(`/chats/activity/${encodeURIComponent(runId)}`);
     return data.data;
   },
   /** Raw bytes of a stored attachment (authorised via the shared axios instance). */

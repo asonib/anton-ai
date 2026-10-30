@@ -16,6 +16,7 @@ export function apiRoutes(container: Container): Router {
   router.use('/projects', projectRoutes(container));
   router.get('/providers', container.authMiddleware, asyncHandler(container.controllers.provider.list));
   router.get('/skills', container.authMiddleware, asyncHandler(container.controllers.skill.list));
+  router.get('/ai-repos', container.authMiddleware, asyncHandler(container.controllers.aiRepo.list));
   router.get('/attachments/:attachmentId/content', container.authMiddleware, asyncHandler(container.controllers.attachment.content));
   return router;
 }

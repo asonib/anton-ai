@@ -22,6 +22,11 @@ export interface LLMOptions {
   maxTokens?: number;
   systemPrompt?: string;
   timeoutMs?: number;
+  /**
+   * Called with each output chunk while the provider streams internally (progress only — the
+   * caller still gets one completed answer). Errors thrown by the callback are ignored.
+   */
+  onToken?: (chunk: string) => void;
 }
 
 export interface ResolvedLLMOptions {

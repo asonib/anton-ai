@@ -42,12 +42,18 @@ export const promptSchema = z.object({
   ),
   /** Attached project (see /projects). Omit for a normal chat; the conversation remembers the last one. */
   projectId: z.preprocess(emptyToUndefined, z.string().uuid('projectId must be a UUID').optional()),
+  /** Client-generated id for live progress (GET /chats/activity/:runId). */
+  runId: z.preprocess(emptyToUndefined, z.string().uuid('runId must be a UUID').optional()),
   model: z.preprocess(emptyToUndefined, z.string().trim().min(1).max(128).optional()),
   temperature: z.preprocess(numberish, z.number({ invalid_type_error: 'temperature must be a number' }).min(0).max(2).optional()),
 });
 
 export const conversationIdParamSchema = z.object({
   conversationId: z.string().uuid('conversationId must be a UUID'),
+});
+
+export const runIdParamSchema = z.object({
+  runId: z.string().uuid('runId must be a UUID'),
 });
 
 export const attachmentIdParamSchema = z.object({

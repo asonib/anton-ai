@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import { logger } from '../utils/logger';
 
+const QUIET_PATHS = /\/chats\/activity\//;
+
 /** Assigns a request id (honours inbound X-Request-Id) and logs method/path/status/duration. */
 export const requestLogger: RequestHandler = (req, res, next) => {
   const inbound = req.header('x-request-id');
@@ -22,6 +24,8 @@ export const requestLogger: RequestHandler = (req, res, next) => {
     };
     if (res.statusCode >= 500) logger.error('request', meta);
     else if (res.statusCode >= 400) logger.warn('request', meta);
+    // Live-progress polls arrive every second or so while a prompt runs — keep them out of the info log.
+    else if (QUIET_PATHS.test(req.originalUrl)) logger.debug('request', meta);
     else logger.info('request', meta);
   });
   next();

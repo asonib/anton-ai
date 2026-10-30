@@ -16,6 +16,27 @@ const FALLBACK_PROVIDERS: ProviderInfo[] = [
 const isProvider = (v: string | null): v is LLMProvider =>
   v === 'ollama' || v === 'openai' || v === 'anthropic' || v === 'gemini' || v === 'grok';
 
+/** RFC 4122 v4 id. `crypto.randomUUID` only exists in secure contexts (not on plain-http LAN URLs). */
+const newRunId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+};
+
+/** The prompt currently (or last) in flight — drives the live activity bubble. */
+export interface ActiveRun {
+  runId: string;
+  startedAt: number;
+  fileCount: number;
+  /** Upload progress 0–1 for multipart requests; null without files. */
+  upload: number | null;
+  /** Set when the response (or the error) arrived. */
+  outcome: 'ok' | 'error' | null;
+}
+
 export interface UiMessage extends ChatMessage {
   pending?: boolean;
   attachments: DisplayAttachment[];
@@ -32,6 +53,7 @@ export function useChat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<NormalisedError | null>(null);
+  const [run, setRun] = useState<ActiveRun | null>(null);
   /** Project attached to the next prompt. Restored from the thread when one is opened; kept for a new chat. */
   const [projectId, setProjectId] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderInfo[]>(FALLBACK_PROVIDERS);
@@ -138,19 +160,25 @@ export function useChat() {
         })),
       };
 
+      const runId = newRunId();
       setError(null);
       setSending(true);
+      setRun({ runId, startedAt: Date.now(), fileCount: files.length, upload: files.length ? 0 : null, outcome: null });
       setMessages((m) => [...m, optimistic]);
 
       try {
-        const res = await chatApi.sendPrompt({
-          conversationId: originId ?? undefined,
-          prompt: text,
-          provider,
-          skill,
-          projectId: projectId ?? undefined,
-          files: files.map((f) => f.file),
-        });
+        const res = await chatApi.sendPrompt(
+          {
+            conversationId: originId ?? undefined,
+            prompt: text,
+            provider,
+            skill,
+            projectId: projectId ?? undefined,
+            files: files.map((f) => f.file),
+            runId,
+          },
+          (fraction) => setRun((r) => (r && r.runId === runId ? { ...r, upload: fraction } : r)),
+        );
 
         // Only paint into the viewport if the user is still on the originating thread.
         if (activeRef.current === originId) {
@@ -169,8 +197,10 @@ export function useChat() {
           };
           return [updated, ...list.filter((c) => c.id !== res.conversation.id)];
         });
+        setRun((r) => (r && r.runId === runId ? { ...r, outcome: 'ok' } : r));
         return true;
       } catch (e) {
+        setRun((r) => (r && r.runId === runId ? { ...r, outcome: 'error' } : r));
         if (activeRef.current === originId) {
           setMessages((m) => m.filter((x) => x.id !== tempId));
           setError(toNormalisedError(e));
@@ -190,6 +220,7 @@ export function useChat() {
     messages,
     loadingMessages,
     sending,
+    run,
     error,
     providers,
     provider,

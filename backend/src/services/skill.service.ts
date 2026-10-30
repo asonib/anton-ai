@@ -28,6 +28,11 @@ export class SkillService {
     }));
   }
 
+  /** Display name of a skill (null when none / unknown). */
+  nameOf(skillId?: string | null): string | null {
+    return (skillId && this.byId.get(skillId)?.name) || null;
+  }
+
   /**
    * System prompt for a request: the base prompt plus the skill's instructions.
    * Returns `undefined` when no skill is selected so the strategy falls back to its default.

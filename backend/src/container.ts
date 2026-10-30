@@ -1,8 +1,18 @@
+import {
+  AI_REPO_CATEGORIES,
+  AI_REPO_EXCLUDE_PATTERNS,
+  DEFAULT_AI_REPO_CATEGORY,
+  FALLBACK_AI_REPOS,
+  aiRepoSettings,
+} from './config/aiRepos.config';
+import { activitySettings } from './config/activity.config';
 import { attachmentLimits } from './config/attachments.config';
 import { defaultProvider } from './config/llm.config';
 import { projectSettings } from './config/projects.config';
 import { BUILT_IN_PROMPTS, PROMPT_CATEGORIES } from './config/prompts.config';
 import { SKILLS } from './config/skills.config';
+import { ActivityController } from './controllers/activity.controller';
+import { AiRepoController } from './controllers/aiRepo.controller';
 import { AttachmentController } from './controllers/attachment.controller';
 import { AuthController } from './controllers/auth.controller';
 import { ChatController } from './controllers/chat.controller';
@@ -21,6 +31,8 @@ import { ProjectRepository } from './models/repositories/project.repository';
 import { ProjectChangeRepository } from './models/repositories/projectChange.repository';
 import { PromptRepository } from './models/repositories/prompt.repository';
 import { UserRepository } from './models/repositories/user.repository';
+import { ActivityService } from './services/activity.service';
+import { AiRepoService } from './services/aiRepo.service';
 import { AttachmentService } from './services/attachment.service';
 import { AuthService } from './services/auth.service';
 import { ChatService } from './services/chat.service';
@@ -65,6 +77,14 @@ export function buildContainer() {
   const authService = new AuthService(userRepository, tokenService);
   const llmService = new LLMService(llmFactory);
   const skillService = new SkillService(SKILLS);
+  const activityService = new ActivityService(activitySettings);
+  const aiRepoService = new AiRepoService(
+    AI_REPO_CATEGORIES,
+    DEFAULT_AI_REPO_CATEGORY,
+    FALLBACK_AI_REPOS,
+    AI_REPO_EXCLUDE_PATTERNS,
+    aiRepoSettings,
+  );
   const promptService = new PromptService(promptRepository, PROMPT_CATEGORIES, BUILT_IN_PROMPTS);
   const attachmentService = new AttachmentService(attachmentRepository, attachmentLimits);
   const projectFileService = new ProjectFileService(projectSettings);
@@ -86,6 +106,7 @@ export function buildContainer() {
     skillService,
     projectService,
     projectChangeRepository,
+    activityService,
   );
 
   return {
@@ -97,9 +118,11 @@ export function buildContainer() {
     controllers: {
       auth: new AuthController(authService),
       chat: new ChatController(chatService),
+      activity: new ActivityController(activityService),
       attachment: new AttachmentController(attachmentService),
       provider: new ProviderController(llmService),
       skill: new SkillController(skillService),
+      aiRepo: new AiRepoController(aiRepoService),
       prompt: new PromptController(promptService),
       project: new ProjectController(projectService),
       health: new HealthController(prisma),
