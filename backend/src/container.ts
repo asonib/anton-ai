@@ -1,11 +1,13 @@
 import { attachmentLimits } from './config/attachments.config';
 import { defaultProvider } from './config/llm.config';
+import { projectSettings } from './config/projects.config';
 import { BUILT_IN_PROMPTS, PROMPT_CATEGORIES } from './config/prompts.config';
 import { SKILLS } from './config/skills.config';
 import { AttachmentController } from './controllers/attachment.controller';
 import { AuthController } from './controllers/auth.controller';
 import { ChatController } from './controllers/chat.controller';
 import { HealthController } from './controllers/health.controller';
+import { ProjectController } from './controllers/project.controller';
 import { PromptController } from './controllers/prompt.controller';
 import { ProviderController } from './controllers/provider.controller';
 import { SkillController } from './controllers/skill.controller';
@@ -15,12 +17,17 @@ import { prisma } from './models/prisma.client';
 import { AttachmentRepository } from './models/repositories/attachment.repository';
 import { ConversationRepository } from './models/repositories/conversation.repository';
 import { MessageRepository } from './models/repositories/message.repository';
+import { ProjectRepository } from './models/repositories/project.repository';
+import { ProjectChangeRepository } from './models/repositories/projectChange.repository';
 import { PromptRepository } from './models/repositories/prompt.repository';
 import { UserRepository } from './models/repositories/user.repository';
 import { AttachmentService } from './services/attachment.service';
 import { AuthService } from './services/auth.service';
 import { ChatService } from './services/chat.service';
 import { LLMService } from './services/llm.service';
+import { ProjectService } from './services/project.service';
+import { ProjectContextService } from './services/projectContext.service';
+import { ProjectFileService } from './services/projectFiles.service';
 import { PromptService } from './services/prompt.service';
 import { SkillService } from './services/skill.service';
 import { TokenService } from './services/token.service';
@@ -44,6 +51,8 @@ export function buildContainer() {
   const messageRepository = new MessageRepository(prisma);
   const attachmentRepository = new AttachmentRepository(prisma);
   const promptRepository = new PromptRepository(prisma);
+  const projectRepository = new ProjectRepository(prisma);
+  const projectChangeRepository = new ProjectChangeRepository(prisma);
 
   // Strategies (LLM providers)
   const llmFactory = new LLMStrategyFactory(
@@ -58,6 +67,15 @@ export function buildContainer() {
   const skillService = new SkillService(SKILLS);
   const promptService = new PromptService(promptRepository, PROMPT_CATEGORIES, BUILT_IN_PROMPTS);
   const attachmentService = new AttachmentService(attachmentRepository, attachmentLimits);
+  const projectFileService = new ProjectFileService(projectSettings);
+  const projectContextService = new ProjectContextService(projectFileService, projectSettings);
+  const projectService = new ProjectService(
+    projectRepository,
+    projectChangeRepository,
+    projectFileService,
+    projectContextService,
+    projectSettings,
+  );
   const chatService = new ChatService(
     prisma,
     conversationRepository,
@@ -66,6 +84,8 @@ export function buildContainer() {
     attachmentService,
     llmService,
     skillService,
+    projectService,
+    projectChangeRepository,
   );
 
   return {
@@ -81,6 +101,7 @@ export function buildContainer() {
       provider: new ProviderController(llmService),
       skill: new SkillController(skillService),
       prompt: new PromptController(promptService),
+      project: new ProjectController(projectService),
       health: new HealthController(prisma),
     },
   };

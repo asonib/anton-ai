@@ -1,4 +1,4 @@
-// Prisma schema — MySQL 8. Every Conversation, Message and Attachment is owned
+// Prisma schema — MySQL 8. Every Conversation, Message, Attachment, Project and ProjectChange is owned
 // by a User (user_id) so all data access can be strictly scoped to the JWT subject.
 // Prompts are the exception: the prompt library is shared (readable by every user),
 // but only the author may edit or delete their prompt. Favorites are per user.
@@ -23,6 +23,23 @@ enum AttachmentKind {
   code
 }
 
+enum ProjectSource {
+  local
+  github
+}
+
+enum ProjectChangeAction {
+  create
+  modify
+  delete
+}
+
+enum ProjectChangeStatus {
+  pending
+  applied
+  discarded
+}
+
 model User {
   id            String         @id @default(uuid()) @db.Char(36)
   email         String         @unique @db.VarChar(255)
@@ -33,6 +50,8 @@ model User {
   attachments   Attachment[]
   prompts       Prompt[]
   favorites     PromptFavorite[]
+  projects      Project[]
+  projectChanges ProjectChange[]
 
   @@map("users")
 }
@@ -40,13 +59,17 @@ model User {
 model Conversation {
   id        String    @id @default(uuid()) @db.Char(36)
   userId    String    @map("user_id") @db.Char(36)
+  /// Project attached on the latest prompt (restored by the UI when the thread is reopened).
+  projectId String?   @map("project_id") @db.Char(36)
   title     String    @db.VarChar(255)
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   messages  Message[]
 
   @@index([userId, updatedAt])
+  @@index([projectId])
   @@map("conversations")
 }
 
@@ -62,6 +85,7 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   attachments    Attachment[]
+  projectChanges ProjectChange[]
 
   @@index([conversationId, createdAt])
   @@index([userId])
@@ -120,4 +144,50 @@ model PromptFavorite {
   @@id([userId, promptId])
   @@index([promptId])
   @@map("prompt_favorites")
+}
+
+/// A code project attached to the LLM context: a local directory inside one of the operator's
+/// WORKSPACE_ROOTS, or a public GitHub repo cloned into PROJECTS_DIR/<userId>/<projectId>.
+model Project {
+  id            String          @id @default(uuid()) @db.Char(36)
+  userId        String          @map("user_id") @db.Char(36)
+  name          String          @db.VarChar(120)
+  source        ProjectSource
+  rootPath      String          @map("root_path") @db.VarChar(1024)
+  repoUrl       String?         @map("repo_url") @db.VarChar(512)
+  gitRef        String?         @map("git_ref") @db.VarChar(255)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  changes       ProjectChange[]
+
+  @@index([userId, updatedAt])
+  @@map("projects")
+}
+
+/// One file edit proposed by an assistant message. Nothing touches the disk until the user applies it.
+/// `baseHash` is the SHA-256 of the file when the change was proposed (null = file did not exist) and
+/// is used to detect conflicting edits; `originalContent` is kept for the diff view and for revert.
+model ProjectChange {
+  id              String              @id @default(uuid()) @db.Char(36)
+  projectId       String              @map("project_id") @db.Char(36)
+  messageId       String              @map("message_id") @db.Char(36)
+  userId          String              @map("user_id") @db.Char(36)
+  path            String              @db.VarChar(1024)
+  action          ProjectChangeAction
+  status          ProjectChangeStatus @default(pending)
+  originalContent String?             @map("original_content") @db.LongText
+  newContent      String?             @map("new_content") @db.LongText
+  baseHash        String?             @map("base_hash") @db.Char(64)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  appliedAt       DateTime?           @map("applied_at")
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  message         Message             @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_changes")
 }

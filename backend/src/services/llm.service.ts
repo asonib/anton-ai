@@ -80,7 +80,8 @@ export class LLMService {
   /** DB history → provider-agnostic memory (attachments folded into user turns). */
   buildMemory(history: MessageWithMemory[], historyImages: Map<string, LLMImage> = new Map()): Message[] {
     return this.windowed(history).map((m) => {
-      if (m.role !== 'user' || m.attachments.length === 0) return { role: m.role, content: m.content };
+      if (m.role === 'assistant') return { role: m.role, content: this.describeChanges(m.content, m.projectChanges) };
+      if (m.attachments.length === 0) return { role: m.role, content: m.content };
       const images = m.attachments.flatMap((a) => {
         const img = historyImages.get(a.id);
         return img ? [img] : [];
@@ -91,6 +92,16 @@ export class LLMService {
         ...(images.length ? { images } : {}),
       };
     });
+  }
+
+  /**
+   * File blocks are stripped from stored replies, so the memory notes which edits were proposed
+   * and what the user did with them (the current file contents come from the project context).
+   */
+  private describeChanges(content: string, changes: { path: string; action: string; status: string }[] = []): string {
+    if (changes.length === 0) return content;
+    const list = changes.map((c) => `${c.path} (${c.action}, ${c.status})`).join(', ');
+    return `${content}\n\n[Proposed file changes: ${list}]`;
   }
 
   async generate(

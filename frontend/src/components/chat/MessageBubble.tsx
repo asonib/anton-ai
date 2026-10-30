@@ -7,6 +7,7 @@ import { useTextToSpeech } from '../../hooks/useTextToSpeech';
 import { messageEnter, popIn } from '../../styles/animations';
 import { formatTime } from '../../utils/format';
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
+import { ProjectChanges } from '../projects/ProjectChanges';
 import { MessageAttachments } from './Attachments';
 import { Avatar } from './Avatar';
 import { DownloadMenu } from './DownloadMenu';
@@ -127,6 +128,7 @@ function MessageBubbleImpl({ message }: { message: UiMessage }) {
             <MarkdownRenderer content={message.content} />
           </AssistantBubble>
         )}
+        {!isUser && message.changes?.length > 0 && <ProjectChanges changes={message.changes} />}
         <Footer $isUser={isUser}>
           {!isUser && message.provider && <Chip title={message.modelName ?? undefined}>{message.provider}</Chip>}
           {!isUser && message.modelName && <span>{message.modelName}</span>}

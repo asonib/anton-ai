@@ -9,3 +9,6 @@ coverage/
 .DS_Store
 .vite/
 *.tsbuildinfo
+
+# Cloned GitHub projects
+backend/data/

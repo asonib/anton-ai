@@ -37,8 +37,8 @@ async function bootstrap(): Promise<void> {
       .join(', ');
     logger.info(`LLM providers: ${providers}`);
   });
-  // LLM answers can take a while — keep sockets open longer than the LLM timeout.
-  server.requestTimeout = env.LLM_TIMEOUT_MS + 15_000;
+  // LLM answers and git clones can take a while — keep sockets open longer than either timeout.
+  server.requestTimeout = Math.max(env.LLM_TIMEOUT_MS, env.GIT_CLONE_TIMEOUT_MS) + 15_000;
 
   const shutdown = (signal: string) => {
     logger.info(`${signal} received, shutting down`);

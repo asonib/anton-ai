@@ -39,13 +39,13 @@ export class ConversationRepository {
     return db.conversation.count({ where: { userId } });
   }
 
-  create(data: { userId: string; title: string; createdAt?: Date }, db: DbClient = this.prisma): Promise<Conversation> {
+  create(data: { userId: string; title: string; projectId?: string | null; createdAt?: Date }, db: DbClient = this.prisma): Promise<Conversation> {
     return db.conversation.create({ data });
   }
 
-  /** Bumps updated_at so the thread floats to the top of the sidebar. */
-  touch(id: string, userId: string, at: Date, db: DbClient = this.prisma): Promise<Conversation> {
-    return db.conversation.update({ where: { id, userId }, data: { updatedAt: at } });
+  /** Bumps updated_at so the thread floats to the top of the sidebar (and records the attached project). */
+  touch(id: string, userId: string, at: Date, projectId: string | null, db: DbClient = this.prisma): Promise<Conversation> {
+    return db.conversation.update({ where: { id, userId }, data: { updatedAt: at, projectId } });
   }
 
   async deleteForUser(id: string, userId: string, db: DbClient = this.prisma): Promise<boolean> {

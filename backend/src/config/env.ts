@@ -53,6 +53,27 @@ const envSchema = z
     /** Per-file cap on extracted document/code text injected into the prompt. */
     ATTACHMENT_MAX_TEXT_CHARS: z.coerce.number().int().min(1_000).max(1_000_000).default(60_000),
 
+    /**
+     * Project workspaces. Local projects may only live inside one of these absolute directories
+     * (separated by `;`). Empty = attaching local directories is disabled.
+     */
+    WORKSPACE_ROOTS: optionalString,
+    /**
+     * Where GitHub repos are cloned and new projects are created (`<dir>/<repo-name>`).
+     * Defaults to the first WORKSPACE_ROOTS entry, else backend/data/projects.
+     */
+    PROJECTS_DIR: optionalString,
+    GIT_BINARY: z.string().default('git'),
+    GIT_CLONE_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
+    /** Max characters of project files (tree + contents) put into the system prompt per request. */
+    PROJECT_CONTEXT_MAX_CHARS: z.coerce.number().int().min(5_000).max(2_000_000).default(120_000),
+    /** Files bigger than this are listed in the tree but their content is never sent. */
+    PROJECT_MAX_FILE_KB: z.coerce.number().int().min(1).max(5_000).default(200),
+    /** Stop scanning a project after this many files. */
+    PROJECT_MAX_FILES: z.coerce.number().int().min(10).max(100_000).default(5_000),
+    /** Output budget for prompts with a project attached (edits are returned as whole files). */
+    PROJECT_LLM_MAX_TOKENS: z.coerce.number().int().positive().default(16_384),
+
     OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
     OLLAMA_MODEL: z.string().default('llama3.2'),
 
@@ -91,6 +112,13 @@ if (!parsed.success) {
 }
 
 export const env = Object.freeze(parsed.data);
+
+/** Environment handed to child processes (git). Prompts are disabled so a clone can never hang on credentials. */
+export const childProcessEnv: Readonly<NodeJS.ProcessEnv> = Object.freeze({
+  ...process.env,
+  GIT_TERMINAL_PROMPT: '0',
+  GCM_INTERACTIVE: 'never',
+});
 export type Env = typeof env;
 export const isProduction = env.NODE_ENV === 'production';
 export const usingDevJwtSecret = env.JWT_SECRET === DEV_JWT_SECRET;

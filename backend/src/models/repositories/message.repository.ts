@@ -1,6 +1,12 @@
 import type { Message, MessageRole, PrismaClient } from '@prisma/client';
 import type { DbClient } from '../prisma.client';
 import { AttachmentMemory, attachmentMemorySelect, AttachmentMeta, attachmentMetaSelect } from './attachment.repository';
+import {
+  ProjectChangeMemory,
+  projectChangeMemorySelect,
+  ProjectChangeSummary,
+  projectChangeSummarySelect,
+} from './projectChange.repository';
 
 export interface CreateMessageInput {
   conversationId: string;
@@ -12,8 +18,8 @@ export interface CreateMessageInput {
   createdAt?: Date;
 }
 
-export type MessageWithAttachments = Message & { attachments: AttachmentMeta[] };
-export type MessageWithMemory = Message & { attachments: AttachmentMemory[] };
+export type MessageWithAttachments = Message & { attachments: AttachmentMeta[]; projectChanges: ProjectChangeSummary[] };
+export type MessageWithMemory = Message & { attachments: AttachmentMemory[]; projectChanges: ProjectChangeMemory[] };
 
 /** Data-access for messages. All reads are scoped by both conversationId AND userId. */
 export class MessageRepository {
@@ -23,7 +29,10 @@ export class MessageRepository {
     return db.message.findMany({
       where: { conversationId, userId },
       orderBy: [{ createdAt: 'asc' }, { role: 'asc' }],
-      include: { attachments: { select: attachmentMetaSelect, orderBy: { createdAt: 'asc' } } },
+      include: {
+        attachments: { select: attachmentMetaSelect, orderBy: { createdAt: 'asc' } },
+        projectChanges: { select: projectChangeSummarySelect, orderBy: { path: 'asc' } },
+      },
     });
   }
 
@@ -39,7 +48,10 @@ export class MessageRepository {
       where: { conversationId, userId },
       orderBy: { createdAt: 'desc' },
       take: limit,
-      include: { attachments: { select: attachmentMemorySelect, orderBy: { createdAt: 'asc' } } },
+      include: {
+        attachments: { select: attachmentMemorySelect, orderBy: { createdAt: 'asc' } },
+        projectChanges: { select: projectChangeMemorySelect, orderBy: { path: 'asc' } },
+      },
     });
     return rows.reverse();
   }

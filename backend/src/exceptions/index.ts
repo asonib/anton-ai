@@ -6,3 +6,4 @@ export * from './ConflictException';
 export * from './LLMProviderException';
 export * from './PayloadTooLargeException';
 export * from './UnsupportedMediaTypeException';
+export * from './ProjectWorkspaceException';
