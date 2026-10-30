@@ -4,7 +4,7 @@ import styled, { css, type RuleSet } from 'styled-components';
 import type { ConversationSummary, LLMProvider, ProviderInfo } from '../../api/types';
 import { appEnv } from '../../config/env';
 import { useThemeMode } from '../../context/ThemeModeContext';
-import { slideInLeft } from '../../styles/animations';
+import { gradientText, slideInLeft } from '../../styles/animations';
 import { media } from '../../styles/theme';
 import { relativeBucket } from '../../utils/format';
 import { Button, IconButton } from '../common/Button';
@@ -110,9 +110,11 @@ const Brand = styled.div`
   white-space: nowrap;
 `;
 
+/** App name with the same flowing gradient as the welcome headline (`EmptyState`). */
 const BrandName = styled.span<{ $collapsed: boolean }>`
   overflow: hidden;
   text-overflow: ellipsis;
+  ${gradientText('6s')}
 
   ${({ $collapsed }) =>
     whenCollapsed(

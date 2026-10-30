@@ -162,6 +162,11 @@ interface Props {
   onRemoveAttachment: (id: string) => void;
   /** Browser voice dictation (see `useSpeechToText`). */
   dictation: { supported: boolean; listening: boolean; onToggle: () => void };
+  /**
+   * Focus the textarea and select `[start, end)` — e.g. the first `[PLACEHOLDER]` of a sample prompt.
+   * Applied whenever `key` changes.
+   */
+  selection?: { start: number; end: number; key: number } | null;
 }
 
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
@@ -180,6 +185,7 @@ export function PromptInput({
   onAddFiles,
   onRemoveAttachment,
   dictation,
+  selection,
 }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -195,6 +201,14 @@ export function PromptInput({
   useEffect(() => {
     if (!disabled) ref.current?.focus();
   }, [disabled]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !selection) return;
+    el.focus();
+    el.setSelectionRange(selection.start, selection.end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection?.key]);
 
   const canSend = !disabled && (value.trim().length > 0 || attachments.length > 0);
 

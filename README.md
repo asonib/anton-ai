@@ -78,6 +78,12 @@ All responses use one envelope: `{ success: true, data, meta? }` or `{ success: 
 | DELETE | `/chats/:conversationId` | Bearer | Delete a thread |
 | GET | `/attachments/:attachmentId/content` | Bearer | Raw bytes of one of your attachments (images inline, other files as a download) |
 | GET | `/providers` | Bearer | Registered LLM providers + configured/default flags |
+| GET | `/skills` | Bearer | Skills (preset modes) for the skills bubble — send `skill` with `/chats/prompt` |
+| GET | `/prompts/categories` | Bearer | Prompt library categories |
+| GET | `/prompts?search=&category=&scope=all\|favorites\|built-in\|mine` | Bearer | Search the shared prompt library |
+| POST | `/prompts` | Bearer | Add a prompt `{ title, category, content }` (visible to every user) |
+| PATCH / DELETE | `/prompts/:id` | Bearer | Edit / delete your own prompt (others → 404) |
+| PUT / DELETE | `/prompts/:id/favorite` | Bearer | Add / remove a favorite |
 | GET | `/health` | – | DB liveness |
 
 Example:

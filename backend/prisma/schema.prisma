@@ -1,5 +1,7 @@
 // Prisma schema — MySQL 8. Every Conversation, Message and Attachment is owned
 // by a User (user_id) so all data access can be strictly scoped to the JWT subject.
+// Prompts are the exception: the prompt library is shared (readable by every user),
+// but only the author may edit or delete their prompt. Favorites are per user.
 
 generator client {
   provider = "prisma-client-js"
@@ -29,6 +31,8 @@ model User {
   conversations Conversation[]
   messages      Message[]
   attachments   Attachment[]
+  prompts       Prompt[]
+  favorites     PromptFavorite[]
 
   @@map("users")
 }
@@ -84,4 +88,36 @@ model Attachment {
   @@index([messageId])
   @@index([userId])
   @@map("attachments")
+}
+
+/// Shared prompt library entry. `authorId = null` marks a built-in prompt synced from
+/// `src/config/prompts.config.ts` (matched by `builtInKey`); those cannot be edited via the API.
+model Prompt {
+  id         String           @id @default(uuid()) @db.Char(36)
+  authorId   String?          @map("author_id") @db.Char(36)
+  builtInKey String?          @unique @map("built_in_key") @db.VarChar(64)
+  title      String           @db.VarChar(120)
+  category   String           @db.VarChar(32)
+  content    String           @db.Text
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  author     User?            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  favorites  PromptFavorite[]
+
+  @@index([authorId])
+  @@index([category])
+  @@map("prompts")
+}
+
+/// A user's favourite prompt (heart). Composite key = one row per user per prompt.
+model PromptFavorite {
+  userId    String   @map("user_id") @db.Char(36)
+  promptId  String   @map("prompt_id") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@id([userId, promptId])
+  @@index([promptId])
+  @@map("prompt_favorites")
 }

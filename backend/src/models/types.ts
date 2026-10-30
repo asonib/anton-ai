@@ -100,3 +100,47 @@ export interface Pagination {
   limit: number;
   offset: number;
 }
+
+/** Public view of a skill (`config/skills.config.ts`) — never includes the system instructions. */
+export interface SkillDTO {
+  id: string;
+  name: string;
+  icon: string;
+  tagline: string;
+  description: string;
+  samplePrompts: string[];
+}
+
+/* ---------------- Prompt library ---------------- */
+
+export type PromptScope = 'all' | 'built-in' | 'mine' | 'favorites';
+
+export interface PromptListQuery extends Pagination {
+  /** Free text; every whitespace-separated term must appear in the title or content. */
+  search?: string;
+  category?: string;
+  scope: PromptScope;
+}
+
+export interface PromptCategoryDTO {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+/** A shared prompt as seen by the requesting user. */
+export interface PromptDTO {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  /** "Anton AI" for built-ins, otherwise the author's display name (e-mail local part). */
+  authorName: string;
+  isBuiltIn: boolean;
+  /** True when the requesting user wrote it — only then may they edit/delete it. */
+  isOwner: boolean;
+  isFavorite: boolean;
+  favoriteCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
