@@ -7,6 +7,7 @@ import type {
   PromptRequest,
   PromptResult,
   ProviderInfo,
+  Skill,
 } from './types';
 
 export const chatApi = {
@@ -29,6 +30,7 @@ export const chatApi = {
     form.append('prompt', fields.prompt);
     if (fields.conversationId) form.append('conversationId', fields.conversationId);
     if (fields.provider) form.append('provider', fields.provider);
+    if (fields.skill) form.append('skill', fields.skill);
     files.forEach((file) => form.append('files', file, file.name));
     // Explicit multipart type stops axios from JSON-serialising the FormData (the instance default
     // is application/json); the browser then fills in the boundary.
@@ -49,6 +51,10 @@ export const chatApi = {
   },
   async listProviders(): Promise<ProviderInfo[]> {
     const { data } = await http.get<ApiSuccess<ProviderInfo[]>>('/providers');
+    return data.data;
+  },
+  async listSkills(): Promise<Skill[]> {
+    const { data } = await http.get<ApiSuccess<Skill[]>>('/skills');
     return data.data;
   },
 };

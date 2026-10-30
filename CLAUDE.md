@@ -65,9 +65,22 @@ Rules:
 
 **Adding a provider**: (1) add id to `LLM_PROVIDERS` in `config/env.ts` + env vars, (2) add entry to `providerSettings`, (3) create `strategies/XStrategy.ts extends BaseLangChainStrategy`, (4) export from `strategies/index.ts`, (5) register in `container.ts`, (6) add to `LLMProvider` union in `frontend/src/api/types.ts`. No controller/service changes.
 
+### Skills
+
+- Defined only in `backend/src/config/skills.config.ts` (`SKILLS`: `id`, `name`, `icon` ∈ `SKILL_ICONS`, `tagline`, `description`, `samplePrompts`, `instructions`). `SkillService` (wired in `container.ts`) serves the public fields at `GET /skills` and turns `promptSchema.skill` into `LLM_SYSTEM_PROMPT + instructions` (unknown id → 400) before the LLM call; `instructions` never leave the server. Skill is per request (like `provider`), not stored in the DB.
+- Frontend: `useSkills` (list + choice persisted via `storage.getSkill`) owned by `ChatPage`. `SkillLauncher` is the pill at the top right (desktop: floats over the chat area in the same layer — `TopBar` is absolute and `ChatViewport reserveTop` pads the content; translucent `colors.panel` fill; mobile: top bar beside New chat) that opens a circular bubble with options on a ring and a hub describing the focused one (arrows cycle, Enter picks, Esc closes; on mobile it is `position: fixed`). Picking a skill starts a new chat (draft kept). `EmptyState` shows the skill's icon/name/description/sample prompts; clicking a sample **fills** the composer (never sends) and selects the first `[PLACEHOLDER]` via `PromptInput`'s `selection` prop. Icons map in `SkillIcon.tsx` — keep it in sync with `SKILL_ICONS`.
+- Adding a skill: append to `SKILLS` (new icon → add to `SKILL_ICONS` and `SkillIcon.tsx`). No other changes.
+
+### Prompt library
+
+- Shared library: **every user can read and search every prompt**, add prompts, and favourite any prompt; only the author can edit/delete (others get 404). This is the one deliberate exception to rule 5 — reads are not filtered by `userId`, but they are always evaluated for the viewer (`isFavorite`, `isOwner`) and writes are scoped by `authorId`. DTOs expose `authorName` (e-mail local part), never the author's id or full e-mail.
+- Config in `backend/src/config/prompts.config.ts`: `PROMPT_CATEGORIES` (`id`, `name`, `icon` ∈ `PROMPT_CATEGORY_ICONS`, served at `GET /prompts/categories`) and `BUILT_IN_PROMPTS` (`authorId = null`, matched by `builtInKey`). `PromptService.syncBuiltIns()` upserts them on server start and deletes removed ones; a failure (e.g. table missing → run `npm run db:push`) only logs a warning.
+- Routes `src/routes/prompt.routes.ts` → `PromptController` → `PromptService` → `PromptRepository` (search = every whitespace-separated term must appear in title or content; MySQL collation makes it case-insensitive). Validation in `validators/prompt.schemas.ts`.
+- Frontend: `PromptLibraryTrigger` pill at the top right (left of `SkillLauncher`, Ctrl/Cmd+K) opens `PromptLibrary`, which covers the chat area (fixed full-screen on mobile): search (debounced), scope tabs (All / Favorites / Created by app / My prompts), category chips, card grid (`PromptCard`: heart, edit/delete for owners, Use) and `PromptEditor` dialog. State in `usePromptLibrary(open)` owned by `ChatPage`; HTTP in `api/promptApi.ts`. Using a prompt **fills** the composer (never sends) and selects the first `[PLACEHOLDER]`. Category icons map in `PromptCategoryIcon.tsx` — keep it in sync with `PROMPT_CATEGORY_ICONS`.
+
 ### Database
 
-- Schema: `backend/prisma/schema.prisma` → tables `users`, `conversations`, `messages`, `attachments` (snake_case columns via `@map`, UUID `CHAR(36)` ids, cascading FKs).
+- Schema: `backend/prisma/schema.prisma` → tables `users`, `conversations`, `messages`, `attachments`, `prompts`, `prompt_favorites` (snake_case columns via `@map`, UUID `CHAR(36)` ids, cascading FKs).
 - **No migration files** (pre-production): the schema is the source of truth and is applied with `prisma db push`. Destructive changes need `npm run db:reset`. Introduce `prisma migrate` before the first production deploy.
 
 ## Frontend conventions

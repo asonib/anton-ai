@@ -5,12 +5,18 @@ import { ChatViewport } from '../components/chat/ChatViewport';
 import { EmptyState } from '../components/chat/EmptyState';
 import { PromptInput } from '../components/chat/PromptInput';
 import { Sidebar } from '../components/chat/Sidebar';
+import { SkillLauncher } from '../components/chat/SkillLauncher';
+import { PromptLibrary } from '../components/prompts/PromptLibrary';
+import { PromptLibraryTrigger } from '../components/prompts/PromptLibraryTrigger';
 import { IconButton } from '../components/common/Button';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
 import { useAttachments } from '../hooks/useAttachments';
 import { useChat } from '../hooks/useChat';
+import { usePromptLibrary } from '../hooks/usePromptLibrary';
+import { useSkills } from '../hooks/useSkills';
 import { useSpeechToText } from '../hooks/useSpeechToText';
+import type { LibraryPrompt } from '../api/types';
 import { appEnv } from '../config/env';
 import { fadeIn } from '../styles/animations';
 import { media } from '../styles/theme';
@@ -24,6 +30,7 @@ const Layout = styled.div`
 `;
 
 const Main = styled.main`
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -31,16 +38,51 @@ const Main = styled.main`
   background: ${({ theme }) => theme.colors.bg};
 `;
 
+/**
+ * Desktop: the prompt library + skills buttons float over the top-right of the chat area (same layer,
+ * no strip of their own). Mobile: the full top bar — menu, app name, library, skills, new chat.
+ */
 const TopBar = styled.header`
-  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: ${({ theme }) => `${theme.space.sm} ${theme.space.md}`};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.bgElevated};
-  font-weight: 600;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.space.sm};
+  padding: ${({ theme }) => `${theme.space.md} ${theme.space.lg}`};
 
-  ${media.mobile} { display: flex; }
+  ${media.mobile} {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    padding: ${({ theme }) => `${theme.space.sm} ${theme.space.md}`};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.bgElevated};
+    font-weight: 600;
+  }
+`;
+
+const MobileOnly = styled.div`
+  display: none;
+  ${media.mobile} { display: contents; }
+`;
+
+const MobileTitle = styled.span`
+  display: none;
+  ${media.mobile} {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+`;
+
+const TopBarActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.space.sm};
 `;
 
 const Overlay = styled.div`
@@ -69,9 +111,14 @@ export function ChatPage() {
   const { user, logout } = useAuth();
   const chat = useChat();
   const attachments = useAttachments();
+  const { skills, activeSkill, selectSkill } = useSkills();
   const [draft, setDraft] = useState('');
+  /** Bumped to focus the composer and select a range (e.g. a sample prompt's first [PLACEHOLDER]). */
+  const [selection, setSelection] = useState<{ start: number; end: number; key: number } | null>(null);
   const speech = useSpeechToText(draft, setDraft);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const library = usePromptLibrary(libraryOpen);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(storage.getSidebarCollapsed);
   const toggleSidebarCollapsed = useCallback(() => setSidebarCollapsed((c) => !c), []);
 
@@ -106,6 +153,18 @@ export function ChatPage() {
     [speech.listening, speech.cancel],
   );
 
+  // Ctrl/Cmd + K toggles the prompt library.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setLibraryOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Ctrl/Cmd + B toggles the desktop sidebar.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -129,7 +188,7 @@ export function ChatPage() {
     setDraft('');
     attachments.detach();
     attachments.dismissError();
-    const ok = await chat.sendPrompt(value, files);
+    const ok = await chat.sendPrompt(value, files, activeSkill?.id);
     if (ok) {
       attachments.release(files);
     } else {
@@ -137,6 +196,29 @@ export function ChatPage() {
       setDraft(value);
       attachments.restore(files);
     }
+  };
+
+  /** Sample prompts fill the composer (never send). The first [PLACEHOLDER] is selected for typing over. */
+  const fillDraft = (text: string) => {
+    speech.cancel();
+    setDraft(text);
+    const slot = /\[[^\]\n]+\]/.exec(text);
+    const start = slot ? slot.index : text.length;
+    const end = slot ? slot.index + slot[0].length : text.length;
+    setSelection({ start, end, key: Date.now() });
+  };
+
+  /** A library prompt fills the composer (never sends) and closes the library. */
+  const applyLibraryPrompt = (prompt: LibraryPrompt) => {
+    setLibraryOpen(false);
+    fillDraft(prompt.content);
+  };
+
+  /** Picking a skill opens a fresh chat so its welcome screen and examples show. The draft is kept. */
+  const pickSkill = (id: string | null) => {
+    selectSkill(id);
+    chat.newChat();
+    setSelection({ start: draft.length, end: draft.length, key: Date.now() });
   };
 
   const closeSidebarThen = (fn: () => void) => () => {
@@ -167,13 +249,23 @@ export function ChatPage() {
 
       <Main>
         <TopBar>
-          <IconButton type="button" aria-label="Open sidebar" onClick={() => setSidebarOpen(true)}>
-            <Menu size={18} />
-          </IconButton>
-          <span>{appEnv.appName}</span>
-          <IconButton type="button" aria-label="New chat" onClick={chat.newChat}>
-            <Plus size={18} />
-          </IconButton>
+          <MobileOnly>
+            <IconButton type="button" aria-label="Open sidebar" onClick={() => setSidebarOpen(true)}>
+              <Menu size={18} />
+            </IconButton>
+          </MobileOnly>
+          <MobileTitle>{appEnv.appName}</MobileTitle>
+          <TopBarActions>
+            <PromptLibraryTrigger open={libraryOpen} onClick={() => setLibraryOpen((o) => !o)} />
+            {skills.length > 0 && (
+              <SkillLauncher skills={skills} activeSkill={activeSkill} onSelect={pickSkill} disabled={chat.sending} />
+            )}
+            <MobileOnly>
+              <IconButton type="button" aria-label="New chat" onClick={chat.newChat}>
+                <Plus size={18} />
+              </IconButton>
+            </MobileOnly>
+          </TopBarActions>
         </TopBar>
 
         <ChatViewport
@@ -181,7 +273,8 @@ export function ChatPage() {
           loading={chat.loadingMessages}
           sending={chat.sending}
           providerLabel={providerLabel}
-          empty={<EmptyState providerLabel={providerLabel} onPick={(text) => void submit(text)} />}
+          reserveTop
+          empty={<EmptyState providerLabel={providerLabel} skill={activeSkill} onPick={fillDraft} />}
         />
 
         <Composer>
@@ -198,8 +291,11 @@ export function ChatPage() {
             onAddFiles={attachments.add}
             onRemoveAttachment={attachments.remove}
             dictation={{ supported: speech.supported, listening: speech.listening, onToggle: speech.toggle }}
+            selection={selection}
           />
         </Composer>
+
+        {libraryOpen && <PromptLibrary library={library} onClose={() => setLibraryOpen(false)} onUse={applyLibraryPrompt} />}
       </Main>
     </Layout>
   );

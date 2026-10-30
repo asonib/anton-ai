@@ -239,3 +239,18 @@ export const dropupEnter = keyframes`
   from { opacity: 0; transform: translateY(6px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 `;
+
+/**
+ * Circular reveal for the skills bubble: grows from its top-right corner (where the trigger sits).
+ * 125% covers the whole inscribed circle measured from the corner.
+ */
+export const bubbleReveal = keyframes`
+  from { clip-path: circle(0% at 100% 0%); }
+  to   { clip-path: circle(125% at 100% 0%); }
+`;
+
+/** Skill options settling onto the bubble's orbit. */
+export const orbitItemEnter = keyframes`
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+`;

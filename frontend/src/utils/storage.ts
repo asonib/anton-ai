@@ -5,6 +5,7 @@ const USER_KEY = 'antonai.user';
 const THEME_KEY = 'antonai.theme';
 const PROVIDER_KEY = 'antonai.provider';
 const SIDEBAR_COLLAPSED_KEY = 'antonai.sidebarCollapsed';
+const SKILL_KEY = 'antonai.skill';
 
 const safe = <T>(fn: () => T, fallback: T): T => {
   try {
@@ -37,4 +38,8 @@ export const storage = {
   getSidebarCollapsed: () => safe(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1', false),
   setSidebarCollapsed: (collapsed: boolean) =>
     safe(() => localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0'), undefined),
+  getSkill: () => safe(() => localStorage.getItem(SKILL_KEY), null),
+  /** `null` = general assistant (no skill). */
+  setSkill: (id: string | null) =>
+    safe(() => (id ? localStorage.setItem(SKILL_KEY, id) : localStorage.removeItem(SKILL_KEY)), undefined),
 };

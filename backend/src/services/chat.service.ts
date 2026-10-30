@@ -14,11 +14,14 @@ import type {
 } from '../models/types';
 import type { AttachmentService } from './attachment.service';
 import type { LLMService } from './llm.service';
+import type { SkillService } from './skill.service';
 
 export interface SendPromptInput {
   conversationId?: string;
   prompt: string;
   provider?: string;
+  /** Skill id; its instructions become part of the system prompt. */
+  skill?: string;
   model?: string;
   temperature?: number;
   /** Raw uploads (multipart). Validated + text-extracted by AttachmentService. */
@@ -48,6 +51,7 @@ export class ChatService {
     private readonly attachmentRepo: AttachmentRepository,
     private readonly attachments: AttachmentService,
     private readonly llm: LLMService,
+    private readonly skills: SkillService,
   ) {}
 
   async listConversations(userId: string, page: Pagination): Promise<{ items: ConversationSummaryDTO[]; total: number }> {
@@ -76,6 +80,7 @@ export class ChatService {
   }
 
   /**
+   * 0. Resolve provider + skill (unknown ids → 400)
    * 1. Validate attachments (type, size, text extraction) — fails fast, before any I/O
    * 2. Verify ownership of an existing thread (or prepare a new one)
    * 3. Load the memory window (+ recent history images) and call the LLM strategy
@@ -86,6 +91,7 @@ export class ChatService {
    */
   async sendPrompt(userId: string, input: SendPromptInput): Promise<PromptResultDTO> {
     const { provider, model } = this.llm.resolveProvider(input.provider, input.model);
+    const systemPrompt = this.skills.systemPromptFor(input.skill);
     const prompt = input.prompt.trim();
 
     const files = await this.attachments.prepare(input.files ?? []);
@@ -104,7 +110,7 @@ export class ChatService {
       { prompt, attachments: files, images: this.attachments.toLLMImages(files) },
       history,
       provider,
-      { model, temperature: input.temperature },
+      { model, temperature: input.temperature, systemPrompt },
       historyImages,
     );
     // Guarantee strict ordering even when the model answers within the same millisecond.

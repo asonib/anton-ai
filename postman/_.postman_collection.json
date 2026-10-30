@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "2e9f03ed-0050-4424-8584-947c0275ba1f",
     "name": "Anton AI API (v1)",
-    "description": "All backend endpoints of Anton AI, mounted at `/api/v1`.\n\n**Quick start**\n1. Run *Auth \u2192 Register* (or *Login*) \u2014 the JWT is saved to the `token` collection variable automatically.\n2. Every other request inherits `Bearer {{token}}` from the collection.\n3. *Chats \u2192 Send prompt (new conversation)* saves `conversationId`; the multipart request saves `attachmentId`.\n\n**Envelope**\n- Success: `{ success: true, data, meta? }`\n- Error: `{ success: false, error: { code, message, details?, path, timestamp, requestId } }`\n\nOther users' resources return 404. `/auth/register` and `/auth/login` are rate-limited (50 per 15 min).",
+    "description": "All backend endpoints of Anton AI, mounted at `/api/v1`.\n\n**Quick start**\n1. Run *Auth → Register* (or *Login*) — the JWT is saved to the `token` collection variable automatically.\n2. Every other request inherits `Bearer {{token}}` from the collection.\n3. *Chats → Send prompt (new conversation)* saves `conversationId`; the multipart request saves `attachmentId`.\n\n**Envelope**\n- Success: `{ success: true, data, meta? }`\n- Error: `{ success: false, error: { code, message, details?, path, timestamp, requestId } }`\n\nOther users' resources return 404. `/auth/register` and `/auth/login` are rate-limited (50 per 15 min).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -109,7 +109,7 @@
                 "register"
               ]
             },
-            "description": "Create an account. Password: 8\u2013128 chars, at least one letter and one number. Returns `{ token, tokenType, expiresIn, user }` (201). 409 if the e-mail exists.",
+            "description": "Create an account. Password: 8–128 chars, at least one letter and one number. Returns `{ token, tokenType, expiresIn, user }` (201). 409 if the e-mail exists.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
@@ -254,6 +254,34 @@
               }
             }
           ]
+        },
+        {
+          "name": "List skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills"
+              ]
+            },
+            "description": "Skills from `backend/src/config/skills.config.ts`: `{ id, name, icon, tagline, description, samplePrompts }` (system instructions stay on the server). Send `skill: <id>` with POST /chats/prompt to use one."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -284,7 +312,7 @@
                 }
               ]
             },
-            "description": "Paginated list of the current user's conversations. `meta` = `{ total, limit, offset }`. `limit` 1\u2013100 (default 50)."
+            "description": "Paginated list of the current user's conversations. `meta` = `{ total, limit, offset }`. `limit` 1–100 (default 50)."
           },
           "event": [
             {
@@ -318,7 +346,7 @@
                 "prompt"
               ]
             },
-            "description": "Send a prompt to an LLM. Omit `conversationId` to start a new conversation (it is saved to the `conversationId` variable for follow-ups).\n\nBody fields (all optional except `prompt` when no files are attached):\n- `conversationId` \u2014 UUID of an existing conversation\n- `prompt` \u2014 up to 32,000 chars\n- `provider` \u2014 `ollama | openai | anthropic | gemini | grok` (default: `DEFAULT_LLM_PROVIDER`)\n- `model` \u2014 override the provider's configured model\n- `temperature` \u2014 0..2\n\nResponse `data`: `{ conversation, userMessage, assistantMessage, provider, model, usage? }`. This is request/response (no streaming); the first Ollama call can take a while.",
+            "description": "Send a prompt to an LLM. Omit `conversationId` to start a new conversation (it is saved to the `conversationId` variable for follow-ups).\n\nBody fields (all optional except `prompt` when no files are attached):\n- `conversationId` — UUID of an existing conversation\n- `prompt` — up to 32,000 chars\n- `provider` — `ollama | openai | anthropic | gemini | grok` (default: `DEFAULT_LLM_PROVIDER`)\n- `model` — override the provider's configured model\n- `temperature` — 0..2\n\nResponse `data`: `{ conversation, userMessage, assistantMessage, provider, model, usage? }`. This is request/response (no streaming); the first Ollama call can take a while.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"prompt\": \"Explain the Strategy pattern in two sentences.\",\n  \"provider\": \"{{provider}}\",\n  \"temperature\": 0.7\n}",
@@ -463,7 +491,7 @@
                 "prompt"
               ]
             },
-            "description": "`multipart/form-data` variant. Select one or more files in the `files` field (up to `ATTACHMENT_MAX_FILES`, each \u2264 `ATTACHMENT_MAX_FILE_MB`).\n\nImages (PNG/JPEG/GIF/WebP) are sent to the model as image input (needs a vision model); PDF, DOCX, text and code files are extracted to text and folded into the prompt. `prompt` may be empty when files are attached. Saves the first attachment's id to `attachmentId`.\n\nErrors: 413 too large / too many files, 415 unsupported type.",
+            "description": "`multipart/form-data` variant. Select one or more files in the `files` field (up to `ATTACHMENT_MAX_FILES`, each ≤ `ATTACHMENT_MAX_FILE_MB`).\n\nImages (PNG/JPEG/GIF/WebP) are sent to the model as image input (needs a vision model); PDF, DOCX, text and code files are extracted to text and folded into the prompt. `prompt` may be empty when files are attached. Saves the first attachment's id to `attachmentId`.\n\nErrors: 413 too large / too many files, 415 unsupported type.",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -482,7 +510,7 @@
                   "value": "",
                   "type": "text",
                   "disabled": true,
-                  "description": "Optional \u2014 continue a conversation"
+                  "description": "Optional — continue a conversation"
                 },
                 {
                   "key": "temperature",
@@ -684,7 +712,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "No bearer token \u2192 401."
+            "description": "No bearer token → 401."
           },
           "event": [
             {
@@ -757,7 +785,7 @@
                 "messages"
               ]
             },
-            "description": "Unknown or someone else's conversation \u2192 404 (never 403)."
+            "description": "Unknown or someone else's conversation → 404 (never 403)."
           },
           "event": [
             {

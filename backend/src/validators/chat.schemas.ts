@@ -29,6 +29,17 @@ export const promptSchema = z.object({
       .pipe(z.enum(LLM_PROVIDERS, { errorMap: () => ({ message: `provider must be one of: ${LLM_PROVIDERS.join(', ')}` }) }))
       .optional(),
   ),
+  /** Skill id from `config/skills.config.ts`; unknown ids are rejected by SkillService. */
+  skill: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(64)
+      .regex(/^[a-z0-9-]+$/, 'skill must be a kebab-case id')
+      .optional(),
+  ),
   model: z.preprocess(emptyToUndefined, z.string().trim().min(1).max(128).optional()),
   temperature: z.preprocess(numberish, z.number({ invalid_type_error: 'temperature must be a number' }).min(0).max(2).optional()),
 });

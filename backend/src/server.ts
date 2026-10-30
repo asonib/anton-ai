@@ -16,6 +16,16 @@ async function bootstrap(): Promise<void> {
     process.exit(1);
   }
 
+  try {
+    const count = await container.promptService.syncBuiltIns();
+    logger.info(`Prompt library: ${count} built-in prompts synced`);
+  } catch (error) {
+    // Most likely the schema hasn't been pushed yet — the rest of the API still works.
+    logger.warn('Could not sync built-in prompts — run `npm run db:push` if the prompts table is missing', {
+      error: (error as Error).message,
+    });
+  }
+
   if (usingDevJwtSecret) logger.warn('Using the built-in development JWT_SECRET. Set JWT_SECRET in backend/.env.');
 
   const app = createApp(container);

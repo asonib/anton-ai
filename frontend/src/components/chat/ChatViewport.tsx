@@ -1,5 +1,6 @@
 import { ReactNode, useRef } from 'react';
 import styled from 'styled-components';
+import { media } from '../../styles/theme';
 import type { UiMessage } from '../../hooks/useChat';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
 import { AuroraBackdrop } from '../common/AuroraBackdrop';
@@ -24,11 +25,15 @@ const Scroll = styled.div`
   flex-direction: column;
 `;
 
-const Inner = styled.div`
+/** Height of the floating desktop skills button (38px) plus its top/bottom spacing. */
+const TOP_CONTROLS_INSET = '62px';
+
+const Inner = styled.div<{ $reserveTop: boolean }>`
   width: 100%;
   max-width: ${({ theme }) => theme.layout.chatMaxWidth};
   margin: 0 auto;
   padding: ${({ theme }) => `${theme.space.xl} ${theme.space.lg} ${theme.space.xxl}`};
+  ${({ $reserveTop }) => $reserveTop && `${media.desktop} { padding-top: ${TOP_CONTROLS_INSET}; }`}
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.space.xl};
@@ -40,10 +45,12 @@ interface Props {
   loading: boolean;
   sending: boolean;
   providerLabel: string;
+  /** Leave room at the top (desktop) for controls floating over the chat area, e.g. the skills button. */
+  reserveTop?: boolean;
   empty: ReactNode;
 }
 
-export function ChatViewport({ messages, loading, sending, providerLabel, empty }: Props) {
+export function ChatViewport({ messages, loading, sending, providerLabel, reserveTop = false, empty }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useAutoScroll(ref, [messages.length, sending, loading]);
   const isEmpty = !loading && messages.length === 0 && !sending;
@@ -52,7 +59,7 @@ export function ChatViewport({ messages, loading, sending, providerLabel, empty 
     <Stage>
       <AuroraBackdrop $visible={isEmpty} />
       <Scroll ref={ref}>
-        <Inner>
+        <Inner $reserveTop={reserveTop}>
           {loading ? (
             <MessagesSkeleton />
           ) : isEmpty ? (

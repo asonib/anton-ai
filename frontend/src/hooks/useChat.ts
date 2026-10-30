@@ -106,7 +106,7 @@ export function useChat() {
 
   /** Returns true on success so the input can restore the draft on failure. */
   const sendPrompt = useCallback(
-    async (prompt: string, files: PendingAttachment[] = []): Promise<boolean> => {
+    async (prompt: string, files: PendingAttachment[] = [], skill?: string): Promise<boolean> => {
       const text = prompt.trim();
       if ((!text && files.length === 0) || sending) return false;
 
@@ -141,6 +141,7 @@ export function useChat() {
           conversationId: originId ?? undefined,
           prompt: text,
           provider,
+          skill,
           files: files.map((f) => f.file),
         });
 

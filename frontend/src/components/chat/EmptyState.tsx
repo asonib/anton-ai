@@ -1,8 +1,10 @@
 import { Code2, Lightbulb, PenLine, Sparkles } from 'lucide-react';
 import styled from 'styled-components';
+import type { Skill } from '../../api/types';
 import { appEnv } from '../../config/env';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import { caretBlink, gradientText, messageEnter } from '../../styles/animations';
+import { SkillIcon } from './SkillIcon';
 
 const Wrap = styled.div`
   margin: auto;
@@ -59,6 +61,29 @@ const Sub = styled.p`
   color: ${({ theme }) => theme.colors.textMuted};
 `;
 
+const SkillDescription = styled.p`
+  max-width: 54ch;
+  margin: 0 auto ${({ theme }) => theme.space.sm};
+  line-height: 1.55;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const SkillMeta = styled.p`
+  margin: 0 0 ${({ theme }) => theme.space.xxl};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.textSubtle};
+`;
+
+/** A `[PLACEHOLDER]` slot inside a sample prompt — the part the user is expected to replace. */
+const Slot = styled.span`
+  padding: 0 4px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: ${({ theme }) => theme.colors.primarySoft};
+  color: ${({ theme }) => theme.colors.primary};
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -99,11 +124,56 @@ const HEADLINES = [
   'Drop a file and ask away.',
 ] as const;
 
-export function EmptyState({ providerLabel, onPick }: { providerLabel: string; onPick: (text: string) => void }) {
+const SLOT_SPLIT = /(\[[^\]\n]+\])/;
+
+/** Renders sample-prompt text with its `[PLACEHOLDER]` slots highlighted. */
+function PromptText({ text }: { text: string }) {
+  return (
+    <span>
+      {text.split(SLOT_SPLIT).map((part, i) => (i % 2 === 1 ? <Slot key={i}>{part}</Slot> : part))}
+    </span>
+  );
+}
+
+interface Props {
+  providerLabel: string;
+  /** Active skill, or `null` for the general assistant. */
+  skill: Skill | null;
+  /** Fills the composer with the prompt (does not send it). */
+  onPick: (text: string) => void;
+}
+
+/** Welcome screen. Shows the selected skill's intro and sample prompts, or the general one. */
+export function EmptyState({ providerLabel, skill, onPick }: Props) {
+  if (skill) {
+    return (
+      <Wrap key={skill.id}>
+        <Logo>
+          <SkillIcon name={skill.icon} size={26} />
+        </Logo>
+        <Title>
+          <Headline>{skill.name}</Headline>
+        </Title>
+        <SkillDescription>{skill.description}</SkillDescription>
+        <SkillMeta>Running on {providerLabel}. Pick an example to fill in the message box.</SkillMeta>
+        <Grid>
+          {skill.samplePrompts.map((text) => (
+            <Suggestion key={text} type="button" onClick={() => onPick(text)}>
+              <PromptText text={text} />
+            </Suggestion>
+          ))}
+        </Grid>
+      </Wrap>
+    );
+  }
+  return <GeneralWelcome providerLabel={providerLabel} onPick={onPick} />;
+}
+
+function GeneralWelcome({ providerLabel, onPick }: Omit<Props, 'skill'>) {
   const headline = useTypewriter(HEADLINES);
 
   return (
-    <Wrap>
+    <Wrap key="general">
       <Logo>
         <Sparkles size={26} />
       </Logo>
@@ -111,7 +181,7 @@ export function EmptyState({ providerLabel, onPick }: { providerLabel: string; o
         <Headline aria-hidden="true">{headline}</Headline>
         <Caret aria-hidden="true" />
       </Title>
-      <Sub>You're chatting with {providerLabel}. Switch providers anytime from the sidebar.</Sub>
+      <Sub>You're chatting with {providerLabel}. For focused help, pick a skill at the top right.</Sub>
       <Grid>
         {SUGGESTIONS.map(({ icon: Icon, text }) => (
           <Suggestion key={text} type="button" onClick={() => onPick(text)}>

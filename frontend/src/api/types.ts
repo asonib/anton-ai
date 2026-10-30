@@ -77,6 +77,8 @@ export interface PromptRequest {
   conversationId?: string;
   prompt: string;
   provider?: LLMProvider;
+  /** Skill id (see `Skill`). Omit for the general assistant. */
+  skill?: string;
   /** When present the request is sent as multipart/form-data. */
   files?: File[];
 }
@@ -97,4 +99,58 @@ export interface ProviderInfo {
   model: string;
   configured: boolean;
   isDefault: boolean;
+}
+
+/** A preset mode from `GET /skills` (defined in `backend/src/config/skills.config.ts`). */
+export interface Skill {
+  id: string;
+  name: string;
+  /** Icon name, rendered by `SkillIcon`. Unknown names fall back to a sparkle. */
+  icon: string;
+  tagline: string;
+  description: string;
+  /** Clicking one fills the composer; `[PLACEHOLDER]` slots are selected for typing over. */
+  samplePrompts: string[];
+}
+
+/* ---------------- Prompt library (GET/POST /prompts) ---------------- */
+
+/** Which slice of the shared library to list. */
+export type PromptScope = 'all' | 'favorites' | 'built-in' | 'mine';
+
+/** From `GET /prompts/categories` (defined in `backend/src/config/prompts.config.ts`). */
+export interface PromptCategory {
+  id: string;
+  name: string;
+  /** Icon name, rendered by `PromptCategoryIcon`. */
+  icon: string;
+}
+
+/** A shared prompt, as seen by the current user. */
+export interface LibraryPrompt {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  authorName: string;
+  isBuiltIn: boolean;
+  /** Only the author can edit/delete. */
+  isOwner: boolean;
+  isFavorite: boolean;
+  favoriteCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromptListParams {
+  search?: string;
+  category?: string;
+  scope?: PromptScope;
+  limit?: number;
+}
+
+export interface PromptDraft {
+  title: string;
+  category: string;
+  content: string;
 }
