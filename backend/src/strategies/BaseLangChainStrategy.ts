@@ -12,6 +12,9 @@ import type { LLMImage, LLMOptions, LLMResponse, LLMUsage, Message, ResolvedLLMO
 const LACKS_VISION =
   /(support|capab|cannot|can't|not allowed).{0,40}(image|vision|multimodal)|(image|vision|multimodal).{0,40}(not supported|unsupported|not enabled)|missing data required for image/i;
 
+/** Largest delay Node's timers accept (2^31 − 1 ms). */
+const MAX_TIMER_MS = 2_147_483_647;
+
 /**
  * Template Method base for LangChain-backed strategies.
  *
@@ -73,7 +76,8 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
           history: this.toLangChainHistory(history),
           input: [this.toHumanMessage(prompt, images)],
         },
-        { signal: AbortSignal.timeout(resolved.timeoutMs) },
+        // timeoutMs 0 = unlimited → no abort signal at all.
+        resolved.timeoutMs > 0 ? { signal: AbortSignal.timeout(resolved.timeoutMs) } : {},
       );
     } catch (error) {
       throw this.normaliseError(error, resolved, images.length > 0 || history.some((m) => m.images?.length));
@@ -107,6 +111,14 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
       systemPrompt: options.systemPrompt?.trim() || llmDefaults.systemPrompt,
       timeoutMs: options.timeoutMs ?? llmDefaults.timeoutMs,
     };
+  }
+
+  /**
+   * Timeout to hand to provider SDKs (OpenAI/Anthropic default to 10 min). When unlimited we pass the
+   * largest delay `setTimeout` accepts (~24.8 days) — anything bigger overflows and fires immediately.
+   */
+  protected sdkTimeoutMs(options: ResolvedLLMOptions): number {
+    return options.timeoutMs > 0 ? options.timeoutMs : MAX_TIMER_MS;
   }
 
   /** Plain text, or a multimodal content array when images are attached. */

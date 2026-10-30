@@ -10,6 +10,9 @@ import type {
   Skill,
 } from './types';
 
+/** Model answers may take as long as they need — axios treats 0 as "never time out". */
+const NO_TIMEOUT = 0;
+
 export const chatApi = {
   async listConversations(limit = 100): Promise<ConversationSummary[]> {
     const { data } = await http.get<ApiSuccess<ConversationSummary[]>>('/chats', { params: { limit } });
@@ -23,7 +26,7 @@ export const chatApi = {
   },
   async sendPrompt({ files, ...fields }: PromptRequest): Promise<PromptResult> {
     if (!files?.length) {
-      const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', fields);
+      const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', fields, { timeout: NO_TIMEOUT });
       return data.data;
     }
     const form = new FormData();
@@ -37,6 +40,7 @@ export const chatApi = {
     // is application/json); the browser then fills in the boundary.
     const { data } = await http.post<ApiSuccess<PromptResult>>('/chats/prompt', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: NO_TIMEOUT,
     });
     return data.data;
   },

@@ -38,7 +38,8 @@ async function bootstrap(): Promise<void> {
     logger.info(`LLM providers: ${providers}`);
   });
   // LLM answers and git clones can take a while — keep sockets open longer than either timeout.
-  server.requestTimeout = Math.max(env.LLM_TIMEOUT_MS, env.GIT_CLONE_TIMEOUT_MS) + 15_000;
+  // LLM_TIMEOUT_MS = 0 means unlimited, so Node's own request timeout is switched off too.
+  server.requestTimeout = env.LLM_TIMEOUT_MS === 0 ? 0 : Math.max(env.LLM_TIMEOUT_MS, env.GIT_CLONE_TIMEOUT_MS) + 15_000;
 
   const shutdown = (signal: string) => {
     logger.info(`${signal} received, shutting down`);

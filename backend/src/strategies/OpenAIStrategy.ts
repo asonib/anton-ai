@@ -17,6 +17,10 @@ export class OpenAIStrategy extends BaseLangChainStrategy {
       temperature: o.temperature,
       maxTokens: o.maxTokens,
       maxRetries: 1,
+      // Stream internally (LangChain still returns one message): long answers keep the socket busy, so
+      // Node's fetch never hits its 5-minute wait-for-headers limit.
+      streaming: true,
+      timeout: this.sdkTimeoutMs(o),
       ...(this.settings.baseUrl ? { configuration: { baseURL: this.settings.baseUrl } } : {}),
     });
   }

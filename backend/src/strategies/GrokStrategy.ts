@@ -20,6 +20,8 @@ export class GrokStrategy extends BaseLangChainStrategy {
       temperature: o.temperature,
       maxTokens: o.maxTokens,
       maxRetries: 1,
+      streaming: true, // see OpenAIStrategy — avoids fetch's 5-minute header wait on long answers
+      timeout: this.sdkTimeoutMs(o),
       configuration: { baseURL: this.settings.baseUrl },
     });
   }

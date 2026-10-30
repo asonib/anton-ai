@@ -17,6 +17,9 @@ export class GeminiStrategy extends BaseLangChainStrategy {
       temperature: o.temperature,
       maxOutputTokens: o.maxTokens,
       maxRetries: 1,
+      // Stream internally (LangChain still returns one message) so long answers never hit fetch's
+      // 5-minute wait-for-headers limit. The Gemini SDK has no timeout unless one is set.
+      streaming: true,
     });
   }
 }

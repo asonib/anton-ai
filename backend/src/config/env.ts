@@ -20,6 +20,11 @@ export type LLMProvider = (typeof LLM_PROVIDERS)[number];
 export const isLLMProvider = (value: unknown): value is LLMProvider =>
   typeof value === 'string' && (LLM_PROVIDERS as readonly string[]).includes(value);
 
+export const ANTHROPIC_THINKING_MODES = ['auto', 'adaptive', 'enabled', 'disabled'] as const;
+export type AnthropicThinkingMode = (typeof ANTHROPIC_THINKING_MODES)[number];
+export const ANTHROPIC_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number];
+
 const DEV_JWT_SECRET = 'dev-only-insecure-secret-change-me-please-32+chars';
 
 const envSchema = z
@@ -36,7 +41,8 @@ const envSchema = z
     BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(4).max(15).default(12),
 
     DEFAULT_LLM_PROVIDER: z.enum(LLM_PROVIDERS).default('ollama'),
-    LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
+    /** 0 (default) = no limit: a model call may run as long as it needs. */
+    LLM_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(0),
     LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.7),
     LLM_MAX_TOKENS: z.coerce.number().int().positive().default(2048),
     LLM_SYSTEM_PROMPT: z
@@ -83,6 +89,15 @@ const envSchema = z
 
     ANTHROPIC_API_KEY: optionalString,
     ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-5'),
+    /**
+     * Extended thinking. `auto` (default) sends the classic request and, if the model answers that it needs
+     * adaptive thinking, switches that model to `adaptive` and retries. `adaptive` / `enabled` / `disabled` force a mode.
+     */
+    ANTHROPIC_THINKING: z.enum(ANTHROPIC_THINKING_MODES).default('auto'),
+    /** Thinking token budget, only used when ANTHROPIC_THINKING=enabled (older models). */
+    ANTHROPIC_THINKING_BUDGET: z.coerce.number().int().min(1024).default(4096),
+    /** Optional `output_config.effort` (low | medium | high | xhigh | max). Empty = model default. */
+    ANTHROPIC_EFFORT: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.enum(ANTHROPIC_EFFORTS).optional()),
 
     GEMINI_API_KEY: optionalString,
     GEMINI_MODEL: z.string().default('gemini-2.5-flash'),

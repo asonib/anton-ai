@@ -58,8 +58,9 @@ Rules:
 ### LLM Strategy layer
 
 - Contract: `ILLMStrategy.generateResponse(prompt, history?, options?, images?) → Promise<LLMResponse>` (request/response, **no SSE/streaming**). `images` (`LLMImage[]`) and `Message.images` become LangChain `image_url` data-URL parts.
-- `BaseLangChainStrategy` implements the template: `ChatPromptTemplate(system → MessagesPlaceholder('history') → MessagesPlaceholder('input'))`, abort-timeout, content/usage extraction, and error normalisation to `LLMProviderException`.
+- `BaseLangChainStrategy` implements the template: `ChatPromptTemplate(system → MessagesPlaceholder('history') → MessagesPlaceholder('input'))`, optional abort-timeout (`LLM_TIMEOUT_MS`, 0 = unlimited), content/usage extraction, and error normalisation to `LLMProviderException`.
 - Concrete strategies (`OllamaStrategy`, `OpenAIStrategy`, `AnthropicStrategy`, `GeminiStrategy`, `GrokStrategy` — xAI via `ChatOpenAI` + `XAI_BASE_URL`) only implement `createModel()` (and `isConfigured()` when no API key is needed).
+- Anthropic thinking: `ANTHROPIC_THINKING` (`auto` default | `adaptive` | `enabled` | `disabled`), `ANTHROPIC_THINKING_BUDGET` (enabled only), `ANTHROPIC_EFFORT` (→ `output_config.effort`), exposed as `anthropicSettings` in `llm.config.ts`. The installed `@langchain/anthropic` always sends `thinking: {type:'disabled'}` + sampling params and doesn't know `adaptive`, so `AnthropicStrategy` overrides them via `invocationKwargs` (spread last; `undefined` keys drop out). In `auto` it sends the classic request, and when a 400 mentions "adaptive" (or rejects temperature/top_p/top_k) it remembers that per model and retries (max 2). Thinking blocks are ignored by `extractText()`.
 - `LLMStrategyFactory.resolve(provider?)` → request `provider` field, else `DEFAULT_LLM_PROVIDER`. Unknown → `ValidationException`; unconfigured → `LLMProviderException(LLM_PROVIDER_NOT_CONFIGURED)`.
 - Conversation memory: `LLMService.buildMemory()` windows the last `CHAT_HISTORY_WINDOW` messages from the DB; `composeUserContent()` folds document/code attachment text into user turns as `<attachment>` blocks, and the last `CHAT_HISTORY_IMAGE_LIMIT` history images are re-sent.
 
@@ -115,6 +116,6 @@ Rules:
 
 - `bcrypt` is native; if install fails on Windows, ensure Node LTS and reinstall (`npm rebuild bcrypt`).
 - `@types/jsonwebtoken` types `expiresIn` narrowly — `TokenService` casts `env.JWT_EXPIRES_IN`.
-- First Ollama call can be slow while the model loads; `LLM_TIMEOUT_MS` (default 120s) and the axios timeout (180s) account for this.
+- Model calls have **no time limit** by default: `LLM_TIMEOUT_MS=0` means no abort signal, provider SDK timeouts are set to the max timer value (`sdkTimeoutMs()`), `server.requestTimeout = 0`, and `chatApi.sendPrompt` sends with axios `timeout: 0`. Set `LLM_TIMEOUT_MS` > 0 to bring a limit back. OpenAI/Grok/Anthropic/Gemini use `streaming: true` *internally* (still one response to the client), and Ollama always streams. That way Node's fetch never hits its 5-minute wait for response headers, and Anthropic doesn't refuse long non-streaming requests.
 - After a DB reset, old browser JWTs point at users that no longer exist; the auth middleware checks the user row and returns 401 `ACCOUNT_NOT_FOUND`, which logs the frontend out. Sign up again.
 - If you changed `MYSQL_USER`/`MYSQL_PASSWORD` after the Docker volume existed, run `docker compose down -v` to recreate it.
