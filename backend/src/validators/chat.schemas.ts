@@ -40,6 +40,8 @@ export const promptSchema = z.object({
       .regex(/^[a-z0-9-]+$/, 'skill must be a kebab-case id')
       .optional(),
   ),
+  /** Attached project (see /projects). Omit for a normal chat; the conversation remembers the last one. */
+  projectId: z.preprocess(emptyToUndefined, z.string().uuid('projectId must be a UUID').optional()),
   model: z.preprocess(emptyToUndefined, z.string().trim().min(1).max(128).optional()),
   temperature: z.preprocess(numberish, z.number({ invalid_type_error: 'temperature must be a number' }).min(0).max(2).optional()),
 });

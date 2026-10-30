@@ -32,6 +32,8 @@ export function useChat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<NormalisedError | null>(null);
+  /** Project attached to the next prompt. Restored from the thread when one is opened; kept for a new chat. */
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderInfo[]>(FALLBACK_PROVIDERS);
   const [provider, setProviderState] = useState<LLMProvider>(() => {
     const saved = storage.getProvider();
@@ -79,7 +81,10 @@ export function useChat() {
     setLoadingMessages(true);
     try {
       const res = await chatApi.getMessages(id);
-      if (activeRef.current === id) setMessages(res.messages);
+      if (activeRef.current === id) {
+        setMessages(res.messages);
+        setProjectId(res.conversation.projectId);
+      }
     } catch (e) {
       if (activeRef.current === id) setError(toNormalisedError(e));
     } finally {
@@ -121,6 +126,7 @@ export function useChat() {
         modelName: null,
         createdAt: new Date().toISOString(),
         pending: true,
+        changes: [],
         attachments: files.map((f) => ({
           id: `temp-${f.id}`,
           kind: f.kind,
@@ -142,6 +148,7 @@ export function useChat() {
           prompt: text,
           provider,
           skill,
+          projectId: projectId ?? undefined,
           files: files.map((f) => f.file),
         });
 
@@ -173,7 +180,7 @@ export function useChat() {
         setSending(false);
       }
     },
-    [provider, sending],
+    [provider, sending, projectId],
   );
 
   return {
@@ -191,6 +198,8 @@ export function useChat() {
     newChat,
     deleteConversation,
     sendPrompt,
+    projectId,
+    setProjectId,
     dismissError: () => setError(null),
     refreshConversations,
   };

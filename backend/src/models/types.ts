@@ -26,6 +26,8 @@ export interface AuthResultDTO {
 export interface ConversationDTO {
   id: string;
   title: string;
+  /** Project attached on the latest prompt (null = none). */
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +59,8 @@ export interface MessageDTO {
   modelName: string | null;
   createdAt: string;
   attachments: AttachmentDTO[];
+  /** File edits proposed by this (assistant) message. Contents come from GET /projects/changes/:id. */
+  changes: ProjectChangeDTO[];
 }
 
 /** A file as received over HTTP, already detached from the transport (multer) types. */
@@ -143,4 +147,90 @@ export interface PromptDTO {
   favoriteCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/* ---------------- Projects ---------------- */
+
+export type ProjectSourceValue = 'local' | 'github';
+export type ProjectChangeActionValue = 'create' | 'modify' | 'delete';
+export type ProjectChangeStatusValue = 'pending' | 'applied' | 'discarded';
+
+export interface ProjectDTO {
+  id: string;
+  name: string;
+  source: ProjectSourceValue;
+  /** Folder on the server (for GitHub projects: the clone — push from there). */
+  rootPath: string;
+  repoUrl: string | null;
+  gitRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectStatsDTO {
+  fileCount: number;
+  totalBytes: number;
+  /** True when PROJECT_MAX_FILES was reached while scanning. */
+  truncated: boolean;
+}
+
+export interface ProjectDetailDTO extends ProjectDTO {
+  stats: ProjectStatsDTO;
+}
+
+/** What the UI needs to know to offer the "attach project" forms. */
+export interface ProjectsConfigDTO {
+  localEnabled: boolean;
+  workspaceRoots: string[];
+  /** Where GitHub clones and new projects are created. */
+  projectsDir: string;
+  contextMaxChars: number;
+}
+
+/** One level of the workspace folder picker (GET /projects/browse). */
+export interface FolderListingDTO {
+  /** All workspace roots (resolved), for switching between them. */
+  roots: string[];
+  /** The root that contains `path`. */
+  root: string;
+  path: string;
+  /** null at the root (can't browse above it). */
+  parent: string | null;
+  /** The user's project for `path` itself, if any. */
+  projectId: string | null;
+  entries: { name: string; path: string; isGitRepo: boolean; projectId: string | null }[];
+  truncated: boolean;
+}
+
+export interface ProjectChangeDTO {
+  id: string;
+  projectId: string;
+  messageId: string;
+  path: string;
+  action: ProjectChangeActionValue;
+  status: ProjectChangeStatusValue;
+  createdAt: string;
+  appliedAt: string | null;
+}
+
+/**
+ * `diskState` compares the file on disk with what the change expects:
+ * pending → is it still the version the edit was based on; applied → is it still the applied version.
+ */
+export interface ProjectChangeDetailDTO extends ProjectChangeDTO {
+  originalContent: string | null;
+  newContent: string | null;
+  diskState: 'in-sync' | 'changed' | 'unavailable';
+}
+
+export interface ProjectChangeConflictDTO {
+  id: string;
+  path: string;
+  reason: string;
+}
+
+export interface ProjectChangesResultDTO {
+  changes: ProjectChangeDTO[];
+  /** Changes that were skipped because the file changed on disk (retry with `force`). */
+  conflicts: ProjectChangeConflictDTO[];
 }

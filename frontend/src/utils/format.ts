@@ -15,3 +15,8 @@ export function relativeBucket(iso: string, now = new Date()): string {
   if (t >= startOfToday - 30 * day) return 'Previous 30 days';
   return 'Older';
 }
+
+/** Short date, e.g. "30 Oct 2026". */
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+}

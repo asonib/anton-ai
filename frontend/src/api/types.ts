@@ -42,6 +42,8 @@ export interface AuthResult {
 export interface Conversation {
   id: string;
   title: string;
+  /** Project attached on the latest prompt (null = none). */
+  projectId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,6 +73,8 @@ export interface ChatMessage {
   modelName: string | null;
   createdAt: string;
   attachments: Attachment[];
+  /** File edits proposed by an assistant message (contents via `projectApi.getChange`). */
+  changes: ProjectChange[];
 }
 
 export interface PromptRequest {
@@ -79,6 +83,8 @@ export interface PromptRequest {
   provider?: LLMProvider;
   /** Skill id (see `Skill`). Omit for the general assistant. */
   skill?: string;
+  /** Attached project; its files are sent as context and the reply may propose edits. */
+  projectId?: string;
   /** When present the request is sent as multipart/form-data. */
   files?: File[];
 }
@@ -153,4 +159,78 @@ export interface PromptDraft {
   title: string;
   category: string;
   content: string;
+}
+
+/* ---------------- Projects (GET/POST /projects) ---------------- */
+
+export type ProjectSource = 'local' | 'github';
+export type ProjectChangeAction = 'create' | 'modify' | 'delete';
+export type ProjectChangeStatus = 'pending' | 'applied' | 'discarded';
+
+export interface Project {
+  id: string;
+  name: string;
+  source: ProjectSource;
+  /** Folder on the server. For GitHub projects this is the clone — commit and push from there. */
+  rootPath: string;
+  repoUrl: string | null;
+  gitRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDetail extends Project {
+  stats: { fileCount: number; totalBytes: number; truncated: boolean };
+}
+
+export interface ProjectsConfig {
+  /** False when the operator has not set WORKSPACE_ROOTS. */
+  localEnabled: boolean;
+  workspaceRoots: string[];
+  /** Where GitHub clones and new projects are created. */
+  projectsDir: string;
+  contextMaxChars: number;
+}
+
+/** One level of the workspace folder picker (`GET /projects/browse`). */
+export interface FolderListing {
+  roots: string[];
+  /** The workspace root that contains `path`. */
+  root: string;
+  path: string;
+  /** null at a workspace root (can't go higher). */
+  parent: string | null;
+  /** Your project for `path` itself, if you already added it. */
+  projectId: string | null;
+  entries: { name: string; path: string; isGitRepo: boolean; projectId: string | null }[];
+  truncated: boolean;
+}
+
+export interface ProjectChange {
+  id: string;
+  projectId: string;
+  messageId: string;
+  path: string;
+  action: ProjectChangeAction;
+  status: ProjectChangeStatus;
+  createdAt: string;
+  appliedAt: string | null;
+}
+
+export interface ProjectChangeDetail extends ProjectChange {
+  originalContent: string | null;
+  newContent: string | null;
+  /** Does the file on disk still match what this change expects? */
+  diskState: 'in-sync' | 'changed' | 'unavailable';
+}
+
+export interface ProjectChangeConflict {
+  id: string;
+  path: string;
+  reason: string;
+}
+
+export interface ProjectChangesResult {
+  changes: ProjectChange[];
+  conflicts: ProjectChangeConflict[];
 }

@@ -31,6 +31,7 @@ export const chatApi = {
     if (fields.conversationId) form.append('conversationId', fields.conversationId);
     if (fields.provider) form.append('provider', fields.provider);
     if (fields.skill) form.append('skill', fields.skill);
+    if (fields.projectId) form.append('projectId', fields.projectId);
     files.forEach((file) => form.append('files', file, file.name));
     // Explicit multipart type stops axios from JSON-serialising the FormData (the instance default
     // is application/json); the browser then fills in the boundary.

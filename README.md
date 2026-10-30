@@ -74,7 +74,7 @@ All responses use one envelope: `{ success: true, data, meta? }` or `{ success: 
 | GET | `/auth/me` | Bearer | Current profile |
 | GET | `/chats?limit&offset` | Bearer | Conversations of the logged-in user (newest first) |
 | GET | `/chats/:conversationId/messages` | Bearer | Full thread history |
-| POST | `/chats/prompt` | Bearer | JSON `{ conversationId?, prompt, provider?, model?, temperature? }` **or** `multipart/form-data` with the same fields + up to 5 `files` → `{ conversation, userMessage, assistantMessage, provider, model, usage, latencyMs }`. `prompt` may be empty when files are attached. Messages include `attachments[]` metadata. |
+| POST | `/chats/prompt` | Bearer | JSON `{ conversationId?, prompt, provider?, skill?, projectId?, model?, temperature? }` **or** `multipart/form-data` with the same fields + up to 5 `files` → `{ conversation, userMessage, assistantMessage, provider, model, usage, latencyMs }`. `prompt` may be empty when files are attached. Messages include `attachments[]` metadata. |
 | DELETE | `/chats/:conversationId` | Bearer | Delete a thread |
 | GET | `/attachments/:attachmentId/content` | Bearer | Raw bytes of one of your attachments (images inline, other files as a download) |
 | GET | `/providers` | Bearer | Registered LLM providers + configured/default flags |
@@ -84,6 +84,15 @@ All responses use one envelope: `{ success: true, data, meta? }` or `{ success: 
 | POST | `/prompts` | Bearer | Add a prompt `{ title, category, content }` (visible to every user) |
 | PATCH / DELETE | `/prompts/:id` | Bearer | Edit / delete your own prompt (others → 404) |
 | PUT / DELETE | `/prompts/:id/favorite` | Bearer | Add / remove a favorite |
+| GET | `/projects/config` | Bearer | `{ localEnabled, workspaceRoots, contextMaxChars }` |
+| GET | `/projects` | Bearer | Your projects |
+| GET | `/projects/browse?path=` | Bearer | Folder picker: sub-folders of `path` inside `WORKSPACE_ROOTS` (default `PROJECTS_DIR`) with `isGitRepo` / `projectId` |
+| POST | `/projects/new` | Bearer | `{ name }` — creates an empty `PROJECTS_DIR/<name>` folder |
+| POST | `/projects/local` | Bearer | `{ path, name? }` — a folder inside `WORKSPACE_ROOTS` |
+| POST | `/projects/github` | Bearer | `{ url, ref?, name? }` — shallow-clones a public repo into `PROJECTS_DIR` |
+| GET / DELETE | `/projects/:projectId` | Bearer | Details + file stats / remove (files inside `WORKSPACE_ROOTS` are never deleted) |
+| GET | `/projects/changes/:changeId` | Bearer | A proposed edit with `originalContent`, `newContent`, `diskState` |
+| POST | `/projects/changes/apply` · `/discard` · `/revert` | Bearer | `{ changeIds[], force? }` → `{ changes[], conflicts[] }` |
 | GET | `/health` | – | DB liveness |
 
 Example:
@@ -115,6 +124,29 @@ handled per type:
 Limits: `ATTACHMENT_MAX_FILES` (5), `ATTACHMENT_MAX_FILE_MB` (10), `ATTACHMENT_MAX_TEXT_CHARS` (60 000 per file).
 Extracted text stays in conversation memory; the last `CHAT_HISTORY_IMAGE_LIMIT` (2) images are re-sent on follow-ups.
 If you change the limits, mirror them in `frontend/src/config/attachments.ts`.
+
+### Projects (codebase context + reviewed edits)
+
+The **Projects** pill (top right) attaches a codebase to the chat:
+
+- **Open a folder** — pick it in the built-in folder browser (or paste a path) — any folder on the API machine inside one of the `WORKSPACE_ROOTS` (`;`-separated absolute paths in
+  `backend/.env`; empty = disabled). Every user can attach folders inside those roots, so only list folders you are happy to share.
+- **GitHub** — public repos only. The API runs `git clone --depth 1` (git must be on the PATH) into
+  `PROJECTS_DIR/<repo>` (`-2`, `-3` … if taken). Applied edits land in that clone; commit and push from there.
+- **New project** — creates an empty `PROJECTS_DIR/<name>` folder and attaches it, so you can ask the model to scaffold it.
+
+`PROJECTS_DIR` defaults to the first `WORKSPACE_ROOTS` folder, so one setting (e.g. `WORKSPACE_ROOTS=C:\Users\me\Documents\AntonAI`)
+keeps clones, new projects and attachable folders together. Removing a project from the app never deletes files inside
+`WORKSPACE_ROOTS`.
+
+With a project attached, each prompt sends the file tree plus as many whole files as fit in `PROJECT_CONTEXT_MAX_CHARS`
+(files you name in the prompt and files changed earlier in the chat go first; `.gitignore`d paths, dependency/build
+folders, binaries, lock files and secrets like `.env` are never sent). The model answers with complete files in
+`<<<FILE path=".." action="create|modify|delete">>> … <<<END FILE>>>` blocks; these are stripped from the message and
+shown as a **Proposed changes** card with per-file diffs. Nothing is written until you click **Apply**; files edited on
+disk in the meantime are reported as conflicts (with "Overwrite anyway"), and applied files can be **reverted**.
+Project prompts use `PROJECT_LLM_MAX_TOKENS` (16 384) as the output budget — small local models usually need a larger
+context window (`num_ctx`) to make use of a project.
 
 ## Project layout
 

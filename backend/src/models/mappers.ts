@@ -1,7 +1,8 @@
-import type { Conversation, Message, User } from '@prisma/client';
+import type { Conversation, Message, Project, User } from '@prisma/client';
 import type { AttachmentMeta } from './repositories/attachment.repository';
+import type { ProjectChangeSummary } from './repositories/projectChange.repository';
 import type { PromptView } from './repositories/prompt.repository';
-import type { AttachmentDTO, ConversationDTO, MessageDTO, PromptDTO, UserDTO } from './types';
+import type { AttachmentDTO, ConversationDTO, MessageDTO, ProjectChangeDTO, ProjectDTO, PromptDTO, UserDTO } from './types';
 
 /** Entity → DTO mappers. Keep persistence shapes from leaking to the HTTP layer. */
 export const toUserDTO = (u: User): UserDTO => ({
@@ -13,6 +14,7 @@ export const toUserDTO = (u: User): UserDTO => ({
 export const toConversationDTO = (c: Conversation): ConversationDTO => ({
   id: c.id,
   title: c.title,
+  projectId: c.projectId,
   createdAt: c.createdAt.toISOString(),
   updatedAt: c.updatedAt.toISOString(),
 });
@@ -26,7 +28,31 @@ export const toAttachmentDTO = (a: AttachmentMeta): AttachmentDTO => ({
   createdAt: a.createdAt.toISOString(),
 });
 
-export const toMessageDTO = (m: Message & { attachments?: AttachmentMeta[] }): MessageDTO => ({
+export const toProjectDTO = (p: Project): ProjectDTO => ({
+  id: p.id,
+  name: p.name,
+  source: p.source,
+  rootPath: p.rootPath,
+  repoUrl: p.repoUrl,
+  gitRef: p.gitRef,
+  createdAt: p.createdAt.toISOString(),
+  updatedAt: p.updatedAt.toISOString(),
+});
+
+export const toProjectChangeDTO = (c: ProjectChangeSummary): ProjectChangeDTO => ({
+  id: c.id,
+  projectId: c.projectId,
+  messageId: c.messageId,
+  path: c.path,
+  action: c.action,
+  status: c.status,
+  createdAt: c.createdAt.toISOString(),
+  appliedAt: c.appliedAt ? c.appliedAt.toISOString() : null,
+});
+
+export const toMessageDTO = (
+  m: Message & { attachments?: AttachmentMeta[]; projectChanges?: ProjectChangeSummary[] },
+): MessageDTO => ({
   id: m.id,
   conversationId: m.conversationId,
   role: m.role,
@@ -35,6 +61,7 @@ export const toMessageDTO = (m: Message & { attachments?: AttachmentMeta[] }): M
   modelName: m.modelName,
   createdAt: m.createdAt.toISOString(),
   attachments: (m.attachments ?? []).map(toAttachmentDTO),
+  changes: (m.projectChanges ?? []).map(toProjectChangeDTO),
 });
 
 export const BUILT_IN_AUTHOR_NAME = 'Anton AI';
