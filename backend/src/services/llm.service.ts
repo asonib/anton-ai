@@ -44,9 +44,9 @@ export class LLMService {
   }
 
   /** Validates the provider early (before any DB writes) and returns the resolved id/model. */
-  resolveProvider(provider?: string | null, model?: string): { provider: LLMProvider; model: string } {
+  resolveProvider(provider?: string | null, model?: string): { provider: LLMProvider; model: string; label: string } {
     const strategy = this.factory.resolve(provider);
-    return { provider: strategy.provider, model: model?.trim() || strategy.defaultModel };
+    return { provider: strategy.provider, model: model?.trim() || strategy.defaultModel, label: strategy.label };
   }
 
   /**

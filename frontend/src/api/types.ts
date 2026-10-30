@@ -87,6 +87,8 @@ export interface PromptRequest {
   projectId?: string;
   /** When present the request is sent as multipart/form-data. */
   files?: File[];
+  /** Client-generated UUID; live progress is polled with `chatApi.getActivity(runId)`. */
+  runId?: string;
 }
 
 export interface PromptResult {
@@ -233,4 +235,72 @@ export interface ProjectChangeConflict {
 export interface ProjectChangesResult {
   changes: ProjectChange[];
   conflicts: ProjectChangeConflict[];
+}
+
+/** One card of the "Top AI repos" panel (`GET /ai-repos`). */
+export interface AiRepo {
+  rank: number;
+  /** `owner/name` */
+  fullName: string;
+  owner: string;
+  name: string;
+  ownerAvatarUrl: string | null;
+  description: string | null;
+  url: string;
+  homepage: string | null;
+  /** null when the server shows its offline snapshot. */
+  stars: number | null;
+  forks: number | null;
+  openIssues: number | null;
+  language: string | null;
+  topics: string[];
+  license: string | null;
+  pushedAt: string | null;
+}
+
+export interface AiRepoCategory {
+  id: string;
+  name: string;
+}
+
+export type AiRepoSource = 'live' | 'cache' | 'stale' | 'fallback';
+
+export interface AiRepoList {
+  category: string;
+  categories: AiRepoCategory[];
+  source: AiRepoSource;
+  fetchedAt: string | null;
+  notice: string | null;
+  items: AiRepo[];
+}
+
+/* ------------------------------ agent activity (live progress) ------------------------------ */
+
+export type ActivityStepKey = 'prepare' | 'attachments' | 'memory' | 'project' | 'skill' | 'model' | 'changes' | 'save';
+
+export interface ActivityStep {
+  key: ActivityStepKey;
+  label: string;
+  detail: string | null;
+  status: 'active' | 'done' | 'error';
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export interface ActivityOutput {
+  chars: number;
+  words: number;
+  /** Project file the model is writing right now. */
+  currentFile: string | null;
+  filesWritten: number;
+}
+
+export interface ActivityRun {
+  runId: string;
+  status: 'running' | 'done' | 'error';
+  startedAt: string;
+  finishedAt: string | null;
+  steps: ActivityStep[];
+  output: ActivityOutput | null;
+  error: string | null;
 }

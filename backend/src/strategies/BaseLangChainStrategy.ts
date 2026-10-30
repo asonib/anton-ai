@@ -1,3 +1,4 @@
+import type { CallbackHandlerMethods } from '@langchain/core/callbacks/base';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
@@ -11,6 +12,9 @@ import type { LLMImage, LLMOptions, LLMResponse, LLMUsage, Message, ResolvedLLMO
 /** Upstream messages that mean "this model can't take images" (Ollama, OpenAI, Gemini wording). */
 const LACKS_VISION =
   /(support|capab|cannot|can't|not allowed).{0,40}(image|vision|multimodal)|(image|vision|multimodal).{0,40}(not supported|unsupported|not enabled)|missing data required for image/i;
+
+/** Largest delay Node's timers accept (2^31 − 1 ms). */
+const MAX_TIMER_MS = 2_147_483_647;
 
 /**
  * Template Method base for LangChain-backed strategies.
@@ -73,7 +77,11 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
           history: this.toLangChainHistory(history),
           input: [this.toHumanMessage(prompt, images)],
         },
-        { signal: AbortSignal.timeout(resolved.timeoutMs) },
+        {
+          // timeoutMs 0 = unlimited → no abort signal at all.
+          ...(resolved.timeoutMs > 0 ? { signal: AbortSignal.timeout(resolved.timeoutMs) } : {}),
+          ...this.progressCallbacks(options.onToken),
+        },
       );
     } catch (error) {
       throw this.normaliseError(error, resolved, images.length > 0 || history.some((m) => m.images?.length));
@@ -107,6 +115,35 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
       systemPrompt: options.systemPrompt?.trim() || llmDefaults.systemPrompt,
       timeoutMs: options.timeoutMs ?? llmDefaults.timeoutMs,
     };
+  }
+
+  /**
+   * LangChain fires `handleLLMNewToken` for every streamed chunk (all our providers stream internally),
+   * which lets the caller report live progress without changing the request/response contract.
+   */
+  protected progressCallbacks(onToken?: (chunk: string) => void): { callbacks?: CallbackHandlerMethods[] } {
+    if (!onToken) return {};
+    return {
+      callbacks: [
+        {
+          handleLLMNewToken: (token: string) => {
+            try {
+              onToken(token);
+            } catch {
+              /* progress must never break the model call */
+            }
+          },
+        },
+      ],
+    };
+  }
+
+  /**
+   * Timeout to hand to provider SDKs (OpenAI/Anthropic default to 10 min). When unlimited we pass the
+   * largest delay `setTimeout` accepts (~24.8 days) — anything bigger overflows and fires immediately.
+   */
+  protected sdkTimeoutMs(options: ResolvedLLMOptions): number {
+    return options.timeoutMs > 0 ? options.timeoutMs : MAX_TIMER_MS;
   }
 
   /** Plain text, or a multimodal content array when images are attached. */
@@ -175,7 +212,9 @@ export abstract class BaseLangChainStrategy implements ILLMStrategy {
     logger.warn('LLM provider call failed', { provider: this.provider, model: options.model, status, netCode, message });
 
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError' || /aborted|timed? ?out/i.test(message)) {
-      return new LLMProviderException(this.provider, `Request timed out after ${options.timeoutMs} ms`, 'LLM_PROVIDER_TIMEOUT', error);
+      return new LLMProviderException(this.provider, options.timeoutMs > 0
+          ? `Request timed out after ${options.timeoutMs} ms (LLM_TIMEOUT_MS in backend/.env — set it to 0 for no limit)`
+          : 'Request was aborted before the provider answered', 'LLM_PROVIDER_TIMEOUT', error);
     }
     if (netCode === 'ECONNREFUSED' || netCode === 'ENOTFOUND' || /fetch failed|ECONNREFUSED/i.test(message)) {
       return new LLMProviderException(this.provider, `Provider endpoint is unreachable (${this.settings.baseUrl ?? 'default endpoint'})`, 'LLM_PROVIDER_UNAVAILABLE', error);

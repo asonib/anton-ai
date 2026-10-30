@@ -45,12 +45,16 @@ interface Props {
   loading: boolean;
   sending: boolean;
   providerLabel: string;
+  /** Text next to the typing dots (defaults to "<provider> is thinking"). */
+  statusLabel?: string;
+  /** Floating overlay inside the chat area, e.g. the live activity bubble (right centre). */
+  overlay?: ReactNode;
   /** Leave room at the top (desktop) for controls floating over the chat area, e.g. the skills button. */
   reserveTop?: boolean;
   empty: ReactNode;
 }
 
-export function ChatViewport({ messages, loading, sending, providerLabel, reserveTop = false, empty }: Props) {
+export function ChatViewport({ messages, loading, sending, providerLabel, statusLabel, overlay, reserveTop = false, empty }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useAutoScroll(ref, [messages.length, sending, loading]);
   const isEmpty = !loading && messages.length === 0 && !sending;
@@ -69,11 +73,12 @@ export function ChatViewport({ messages, loading, sending, providerLabel, reserv
               {messages.map((m) => (
                 <MessageBubble key={m.id} message={m} />
               ))}
-              {sending && <TypingIndicator label={`${providerLabel} is thinking`} />}
+              {sending && <TypingIndicator label={statusLabel ?? `${providerLabel} is thinking`} />}
             </>
           )}
         </Inner>
       </Scroll>
+      {overlay}
     </Stage>
   );
 }

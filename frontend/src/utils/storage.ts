@@ -6,6 +6,7 @@ const THEME_KEY = 'antonai.theme';
 const PROVIDER_KEY = 'antonai.provider';
 const SIDEBAR_COLLAPSED_KEY = 'antonai.sidebarCollapsed';
 const SKILL_KEY = 'antonai.skill';
+const ACTIVITY_COLLAPSED_KEY = 'antonai.activityCollapsed';
 
 const safe = <T>(fn: () => T, fallback: T): T => {
   try {
@@ -17,6 +18,13 @@ const safe = <T>(fn: () => T, fallback: T): T => {
 
 /** Thin wrapper over localStorage so the rest of the app never touches it directly. */
 export const storage = {
+  /** null = never chosen (the bubble picks a default per screen size). */
+  getActivityCollapsed: (): boolean | null =>
+    safe(() => {
+      const v = localStorage.getItem(ACTIVITY_COLLAPSED_KEY);
+      return v === null ? null : v === '1';
+    }, null),
+  setActivityCollapsed: (collapsed: boolean) => safe(() => localStorage.setItem(ACTIVITY_COLLAPSED_KEY, collapsed ? '1' : '0'), undefined),
   getToken: () => safe(() => localStorage.getItem(TOKEN_KEY), null),
   getUser: (): User | null => safe(() => JSON.parse(localStorage.getItem(USER_KEY) ?? 'null') as User | null, null),
   setSession(token: string, user: User) {

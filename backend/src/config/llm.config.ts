@@ -1,4 +1,17 @@
-import { env, LLMProvider } from './env';
+import { AnthropicEffort, AnthropicThinkingMode, env, LLMProvider } from './env';
+
+/** Anthropic-only request options (extended / adaptive thinking and effort). */
+export interface AnthropicSettings {
+  thinking: AnthropicThinkingMode;
+  thinkingBudget: number;
+  effort?: AnthropicEffort;
+}
+
+export const anthropicSettings: Readonly<AnthropicSettings> = Object.freeze({
+  thinking: env.ANTHROPIC_THINKING,
+  thinkingBudget: env.ANTHROPIC_THINKING_BUDGET,
+  effort: env.ANTHROPIC_EFFORT,
+});
 
 /** Static, per-provider settings consumed by the strategy implementations. */
 export interface ProviderSettings {

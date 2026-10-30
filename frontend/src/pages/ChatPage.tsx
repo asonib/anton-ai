@@ -1,6 +1,9 @@
 import { Menu, Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
+import { AiReposPanel } from '../components/aiRepos/AiReposPanel';
+import { AiReposTrigger } from '../components/aiRepos/AiReposTrigger';
+import { AgentActivityBubble } from '../components/chat/AgentActivityBubble';
 import { ChatViewport } from '../components/chat/ChatViewport';
 import { EmptyState } from '../components/chat/EmptyState';
 import { PromptInput } from '../components/chat/PromptInput';
@@ -14,6 +17,8 @@ import { PromptLibraryTrigger } from '../components/prompts/PromptLibraryTrigger
 import { IconButton } from '../components/common/Button';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
+import { useAgentActivity } from '../hooks/useAgentActivity';
+import { useAiRepos } from '../hooks/useAiRepos';
 import { useAttachments } from '../hooks/useAttachments';
 import { useChat } from '../hooks/useChat';
 import { useFolderBrowser } from '../hooks/useFolderBrowser';
@@ -21,7 +26,7 @@ import { useProjects } from '../hooks/useProjects';
 import { usePromptLibrary } from '../hooks/usePromptLibrary';
 import { useSkills } from '../hooks/useSkills';
 import { useSpeechToText } from '../hooks/useSpeechToText';
-import type { LibraryPrompt, Project } from '../api/types';
+import type { AiRepo, LibraryPrompt, Project } from '../api/types';
 import { appEnv } from '../config/env';
 import { fadeIn } from '../styles/animations';
 import { media } from '../styles/theme';
@@ -115,6 +120,7 @@ const Composer = styled.div`
 export function ChatPage() {
   const { user, logout } = useAuth();
   const chat = useChat();
+  const activity = useAgentActivity(chat.run, chat.sending);
   const attachments = useAttachments();
   const { skills, activeSkill, selectSkill } = useSkills();
   const [draft, setDraft] = useState('');
@@ -127,6 +133,11 @@ export function ChatPage() {
   const [projectsOpen, setProjectsOpen] = useState(false);
   const projects = useProjects(chat.projectId);
   const folderBrowser = useFolderBrowser(projectsOpen && Boolean(projects.config?.localEnabled));
+  const [reposOpen, setReposOpen] = useState(false);
+  const aiRepos = useAiRepos(reposOpen);
+  const [cloningUrl, setCloningUrl] = useState<string | null>(null);
+  /** Show the projects error inside the repos panel only when it came from a clone started there. */
+  const [repoCloneFailed, setRepoCloneFailed] = useState(false);
 
   // A thread can point at a project that was removed since — drop it instead of failing the next prompt.
   useEffect(() => {
@@ -172,6 +183,7 @@ export function ChatPage() {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setProjectsOpen(false);
+        setReposOpen(false);
         setLibraryOpen((o) => !o);
       }
     };
@@ -193,6 +205,13 @@ export function ChatPage() {
 
   const providerInfo = chat.providers.find((p) => p.id === chat.provider);
   const providerLabel = providerInfo?.label ?? chat.provider;
+  /** The typing indicator follows the live activity: "Reading attachments", "… is writing", etc. */
+  const statusLabel =
+    activity.phase === 'running' && activity.current
+      ? activity.current.key === 'model'
+        ? `${providerLabel} is ${activity.output?.chars ? 'writing' : 'thinking'}`
+        : activity.current.label
+      : undefined;
 
   const submit = async (text = draft) => {
     const value = text.trim();
@@ -242,6 +261,31 @@ export function ChatPage() {
     setSelection({ start: draft.length, end: draft.length, key: Date.now() });
   };
 
+  /** "Add as project" in the top AI repos panel: reuse an existing clone or clone it now, then attach it. */
+  const addRepoAsProject = async (repo: AiRepo, existing: Project | null) => {
+    if (existing) {
+      chat.setProjectId(existing.id);
+      setReposOpen(false);
+      setSelection({ start: draft.length, end: draft.length, key: Date.now() });
+      return;
+    }
+    projects.dismissError();
+    setRepoCloneFailed(false);
+    setCloningUrl(repo.url);
+    try {
+      const project = await projects.addGithub(repo.url);
+      if (project) {
+        chat.setProjectId(project.id);
+        setReposOpen(false);
+        setSelection({ start: draft.length, end: draft.length, key: Date.now() });
+      } else {
+        setRepoCloneFailed(true);
+      }
+    } finally {
+      setCloningUrl(null);
+    }
+  };
+
   const closeSidebarThen = (fn: () => void) => () => {
     fn();
     setSidebarOpen(false);
@@ -277,11 +321,20 @@ export function ChatPage() {
           </MobileOnly>
           <MobileTitle>{appEnv.appName}</MobileTitle>
           <TopBarActions>
+            <AiReposTrigger
+              open={reposOpen}
+              onClick={() => {
+                setLibraryOpen(false);
+                setProjectsOpen(false);
+                setReposOpen((o) => !o);
+              }}
+            />
             <ProjectTrigger
               open={projectsOpen}
               projectName={projects.active?.name}
               onClick={() => {
                 setLibraryOpen(false);
+                setReposOpen(false);
                 setProjectsOpen((o) => !o);
               }}
             />
@@ -289,6 +342,7 @@ export function ChatPage() {
               open={libraryOpen}
               onClick={() => {
                 setProjectsOpen(false);
+                setReposOpen(false);
                 setLibraryOpen((o) => !o);
               }}
             />
@@ -308,6 +362,8 @@ export function ChatPage() {
           loading={chat.loadingMessages}
           sending={chat.sending}
           providerLabel={providerLabel}
+          statusLabel={statusLabel}
+          overlay={<AgentActivityBubble view={activity} agentName={appEnv.appName} />}
           reserveTop
           empty={<EmptyState providerLabel={providerLabel} skill={activeSkill} onPick={fillDraft} />}
         />
@@ -320,7 +376,11 @@ export function ChatPage() {
             <ProjectChip
               project={projects.active}
               detail={projects.activeDetail}
-              onOpen={() => setProjectsOpen(true)}
+              onOpen={() => {
+                setReposOpen(false);
+                setLibraryOpen(false);
+                setProjectsOpen(true);
+              }}
               onDetach={() => chat.setProjectId(null)}
             />
           )}
@@ -348,6 +408,21 @@ export function ChatPage() {
             onAttach={attachProject}
             onDetach={() => chat.setProjectId(null)}
             onClose={() => setProjectsOpen(false)}
+          />
+        )}
+        {reposOpen && (
+          <AiReposPanel
+            state={aiRepos}
+            projects={projects.projects}
+            activeProjectId={chat.projectId}
+            cloningUrl={cloningUrl}
+            cloneError={repoCloneFailed ? projects.error : null}
+            onDismissCloneError={() => {
+              setRepoCloneFailed(false);
+              projects.dismissError();
+            }}
+            onAddProject={(repo, existing) => void addRepoAsProject(repo, existing)}
+            onClose={() => setReposOpen(false)}
           />
         )}
         {libraryOpen && <PromptLibrary library={library} onClose={() => setLibraryOpen(false)} onUse={applyLibraryPrompt} />}
